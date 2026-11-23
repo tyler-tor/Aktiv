@@ -1,5 +1,7 @@
-import { createStore, combineReducers, applyMiddleware, compose } from 'redux';
-import thunk from 'redux-thunk';
+// Redux 5 marks createStore as legacy (Redux Toolkit's configureStore is the
+// recommended replacement); legacy_createStore is the same function.
+import { legacy_createStore as createStore, combineReducers, applyMiddleware, compose } from 'redux';
+import { thunk } from 'redux-thunk';
 import logger from 'redux-logger';
 import session from './session'
 import usersReducer from './users';

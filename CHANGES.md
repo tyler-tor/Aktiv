@@ -22,6 +22,7 @@ at the end of this file.
 - **A16 pins:** the plan leaves all version upgrades to A17, but the old pins cannot be installed or run on Python 3.12, so A16 bumps only what 3.12 strictly needs (greenlet 3.5.6, SQLAlchemy 1.4.54, six 1.17.0) and temporarily pins setuptools 80.10.2 (pkg_resources for Flask 2.0's CLI). `requirements.txt` was kept (no pyproject/uv lock) to stay closest to the existing setup.
 - **A17 extra packages:** besides the packages the plan lists, A17 also upgrades Flask-SQLAlchemy to 3.0.5 (2.5.1 cannot run on Flask 3; SQLAlchemy stays 1.4 until A18) and Pillow 11.3 -> 13.0 plus all transitive pins (urllib3, idna, dnspython, Mako, ...), because they carried most of the pip-audit findings. Alembic is 1.19.2, not 1.20.x: 1.20 needs SQLAlchemy 2.0, so it moves to the latest in A18.
 - **A18 timestamps / typed models:** the plan suggests timezone-aware timestamps. Values are now UTC (`datetime.now(timezone.utc)`), but stored without tzinfo because the columns are `DateTime` without time zone; switching them to `DateTime(timezone=True)` (Postgres `timestamptz`) needs a migration that rewrites 8 columns and is best tested on real Postgres (A38), so it was left out. The optional typed `Mapped[]` columns were also skipped (no behaviour change, larger diff, more migration-drift risk).
+- **A20 version bumps of A22/A23 packages:** React 19 is outside the declared peer range of `@react-google-maps/api` 2.17 and of react-router 5.2's `mini-create-react-context`, so A20 bumps them to 2.20.8 and 5.3.4 (versions only, no code changes). A22 (router v7) and A23 (single Maps loader) still do the actual migrations.
 
 ## Open questions for Tyler
 
@@ -480,3 +481,23 @@ at the end of this file.
   - Vite needs Node 20.19+ or 22.12+.
   - Two pages crash on existing bugs that are **not** caused by this change (they behave the same before and after): `/routes` (`components/UserRoutes/Routes.jsx` maps over `state.routes`, which is an object with `null` values) and `/users` (`UsersList.jsx` does the same with `state.users`). Neither page is linked from the navbar. Not fixed here (outside A19-A23).
   - Maps rendering was not checked in a real browser (no API key here).
+
+## A20 — React 17 -> 19 and react-redux 9
+- **Problem:** React 17 (2020) is out of support; its `ReactDOM.render` entry point was removed in React 19. react-redux 7, redux 4 and redux-thunk 2 are two majors behind, and the testing libraries (`@testing-library/react` 11, `jest-dom` 5) only work with React 17 and carried the last 4 `npm audit` findings.
+- **What changed:**
+  - `react` / `react-dom` 17.0.2 -> **19.3.1**, `react-redux` 7.2.4 -> **9.3.1**, `redux` 4.1.0 -> **5.0.1**, `redux-thunk` 2.3.0 -> **3.1.0**.
+  - `src/main.jsx`: `ReactDOM.render(...)` -> `createRoot(document.getElementById('root')).render(...)` (still wrapped in `<React.StrictMode>`).
+  - `src/store/index.js`: redux-thunk 3 has a named export (`import { thunk } from 'redux-thunk'`); Redux 5 marks `createStore` as legacy, so it is imported as `legacy_createStore` (same function, no warning; A21 replaces it with Redux Toolkit's `configureStore`).
+  - StrictMode double effects: since React 18, development mode mounts every component twice, so `App`'s startup effect ran twice. The second run found the preload "already started" and showed the pages *before* routes/workouts had arrived. `preload()` now keeps the in-flight promise and both runs wait for the same one. (Production is not affected; StrictMode only runs in development.)
+  - Testing libraries moved to `devDependencies` and updated for React 19: `@testing-library/react` 16.3.3 (+ its new peer `@testing-library/dom` 10.4.2), `@testing-library/jest-dom` 8.0.0, `@testing-library/user-event` 14.6.13. (No tests use them yet; A51.)
+  - Two version bumps needed only for React 19 compatibility (no code changes): `@react-google-maps/api` 2.17.0 -> **2.20.8** (2.17 declares React <= 18) and `react-router-dom` 5.2.0 -> **5.3.4** (5.2 pulls in `mini-create-react-context`, which declares React <= 17). See Deviations.
+  - Checked for other React 19 removals: no `propTypes`/`defaultProps`, string refs, legacy context, `findDOMNode` or `unmountComponentAtNode` in the code; `ReactDOM.createPortal` (Modal) is unchanged in 19.
+- **Files:** `react-app/package.json`, `react-app/package-lock.json`, `react-app/src/main.jsx`, `react-app/src/store/index.js`, `react-app/src/App.jsx`
+- **How to verify:**
+  1. `cd react-app && npm ci && npm run build` -> builds; `npm audit` -> **0 vulnerabilities**.
+  2. `npm run dev` with Flask running: log in with Demo, open a route, a workout, a user page, add a comment, add/remove a friend.
+  3. With React DevTools / the console open: no "ReactDOM.render is no longer supported" error.
+  Verified: build OK (~0.13 s); `npm audit` 4 -> 0; the jsdom smoke test (real `<App/>`, API fixtures, 19 page/login-state combinations + demo-login click) renders **the same text, URLs and API calls** as on the A19 baseline. The two pre-existing crashes (`/routes`, `/users`, see A19) are unchanged.
+- **Things to watch:**
+  - In development you will see each startup request (e.g. `/api/auth/`) twice in the Network tab: that is StrictMode's double mount, by design, and does not happen in the production build.
+  - react-router stays on v5 until A22; it runs on React 19 but is no longer developed.

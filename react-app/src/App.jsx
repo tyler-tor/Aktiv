@@ -25,14 +25,20 @@ function App() {
   const user = useSelector((state) => state.session.user);
   const userId = user ? user.id : null;
   const dispatch = useDispatch();
-  // Which user we already preloaded routes/workouts for (avoids refetching
-  // every time the session object is refreshed, e.g. after adding a friend).
+  // Which user we already preloaded routes/workouts for, and that preload's
+  // promise (avoids refetching every time the session object is refreshed,
+  // e.g. after adding a friend). Sharing the promise matters in development:
+  // React 18+ StrictMode runs effects twice, and the second run must wait for
+  // the same preload instead of rendering the pages before the data is there.
   const preloadedFor = useRef(null);
 
-  const preload = useCallback(async (id) => {
-    if (preloadedFor.current === id) return;
-    preloadedFor.current = id;
-    await Promise.all([dispatch(getAllWorkouts()), dispatch(getAllRoutes())]);
+  const preload = useCallback((id) => {
+    if (preloadedFor.current && preloadedFor.current.id === id) {
+      return preloadedFor.current.promise;
+    }
+    const promise = Promise.all([dispatch(getAllWorkouts()), dispatch(getAllRoutes())]);
+    preloadedFor.current = { id, promise };
+    return promise;
   }, [dispatch]);
 
   // First load: restore the session, preload data if logged in, then render.
