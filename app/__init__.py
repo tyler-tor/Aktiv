@@ -1,4 +1,6 @@
-from flask import Flask
+import os
+
+from flask import Flask, send_from_directory
 from flask_wtf.csrf import CSRFError, generate_csrf
 
 from .config import APP_ENV, get_config, check_secret_key
@@ -31,6 +33,15 @@ def create_app(config_name=None):
         raise RuntimeError(
             'DATABASE_URL is not set. Add it to .env, e.g. DATABASE_URL=sqlite:///dev.db '
             '(local) or postgresql://user:password@host:5432/dbname')
+
+    # Flask-SQLAlchemy 3 resolves a relative SQLite path (sqlite:///dev.db)
+    # against the instance/ folder; 2.x used the app/ package folder. Keep the
+    # old location so an existing app/dev.db is still found.
+    uri = app.config['SQLALCHEMY_DATABASE_URI']
+    if uri.startswith('sqlite:///') and not uri.startswith('sqlite:////'):
+        path = uri[len('sqlite:///'):]
+        if path and path != ':memory:' and not os.path.isabs(path):
+            app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(app.root_path, path)
 
     # Extensions
     db.init_app(app)
@@ -106,7 +117,8 @@ def register_app_routes(app):
         or index.html requests
         """
         if path == 'favicon.ico':
-            return app.send_from_directory('public', 'favicon.ico')
+            # (was app.send_from_directory, which does not exist)
+            return send_from_directory(app.static_folder, 'favicon.ico')
         return app.send_static_file('index.html')
 
 

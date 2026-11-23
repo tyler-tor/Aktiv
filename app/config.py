@@ -74,8 +74,8 @@ class Config:
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
     SESSION_COOKIE_SECURE = False
-    # Same for Flask-Login's "remember me" cookie. (REMEMBER_COOKIE_SAMESITE is
-    # only honoured from Flask-Login 0.6, installed in Batch 2.)
+    # Same for Flask-Login's "remember me" cookie (SameSite is honoured since
+    # Flask-Login 0.6).
     REMEMBER_COOKIE_HTTPONLY = True
     REMEMBER_COOKIE_SAMESITE = 'Lax'
     REMEMBER_COOKIE_SECURE = False

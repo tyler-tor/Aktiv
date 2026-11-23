@@ -20,6 +20,7 @@ at the end of this file.
 - **A15 done before A18/A47:** the plan suggested doing the migration cleanup after the SQLAlchemy 2.0 upgrade and the Render-schema decision. It was done now on SQLAlchemy 1.4 / Alembic 1.6 using only basic operations (rebuild `follows`, drop `workouts.route_id`, set column defaults) and keeps supporting the production `SCHEMA`, so it does not block either later item. Decision taken: **drop** `workouts.route_id` rather than add it to the model.
 - **A0 (new item, Batch 2):** not in the original plan; added at Tyler's request before the upgrades. Beyond the brief, `flask seed undo` is also refused in production (it deletes everything just like `--reset`).
 - **A16 pins:** the plan leaves all version upgrades to A17, but the old pins cannot be installed or run on Python 3.12, so A16 bumps only what 3.12 strictly needs (greenlet 3.5.6, SQLAlchemy 1.4.54, six 1.17.0) and temporarily pins setuptools 80.10.2 (pkg_resources for Flask 2.0's CLI). `requirements.txt` was kept (no pyproject/uv lock) to stay closest to the existing setup.
+- **A17 extra packages:** besides the packages the plan lists, A17 also upgrades Flask-SQLAlchemy to 3.0.5 (2.5.1 cannot run on Flask 3; SQLAlchemy stays 1.4 until A18) and Pillow 11.3 -> 13.0 plus all transitive pins (urllib3, idna, dnspython, Mako, ...), because they carried most of the pip-audit findings. Alembic is 1.19.2, not 1.20.x: 1.20 needs SQLAlchemy 2.0, so it moves to the latest in A18.
 
 ## Open questions for Tyler
 
@@ -401,3 +402,26 @@ at the end of this file.
   - `psycopg2==2.9.5` still builds from source and needs `pg_config` (Postgres client headers). It was skipped in the local test venv (SQLite); A17 switches to the prebuilt `psycopg2-binary`.
   - The config classes still read environment variables when `app/config.py` is first imported (class attributes). Set env vars *before* importing `app` in tests, or pass values through `app.config` after `create_app('testing')`. A49 (tests) can refine this.
   - You will see a `pkg_resources is deprecated` warning on every `flask` command until A17.
+
+## A17 — Flask 3.x stack upgrade
+- **Problem:** The web stack was from early 2021: Flask 2.0.1, Werkzeug 2.0.1 and gunicorn 20.1.0 all have published security advisories, and `pip-audit` reported **142 known vulnerabilities in 10 packages** for `requirements.txt` (Werkzeug, Jinja2, Flask, gunicorn, urllib3, Pillow, Mako, python-dotenv, idna, dnspython). `psycopg2` had to be compiled from source (needs Postgres headers and a C compiler). The favicon branch of the React catch-all called `app.send_from_directory`, which has never existed on the app object (it would crash with `AttributeError` if reached).
+- **What changed:**
+  - Upgraded (all pinned in `requirements.txt`, including what they pull in): Flask 2.0.1 -> **3.1.3**, Werkzeug 2.0.1 -> **3.1.9**, Flask-Login 0.5.0 -> **0.6.3**, Flask-WTF 0.15.1 -> **1.3.0**, WTForms 2.3.3 -> **3.3.2**, Flask-Migrate 3.0.1 -> **4.1.0**, Alembic 1.6.5 -> **1.19.2**, gunicorn 20.1.0 -> **27.0.1**, python-dotenv 0.14.0 -> **1.2.4**, boto3/botocore 1.26/1.29 -> **1.44.10**, click 7 -> 8.5.1, Jinja2 3.1.6, itsdangerous 2.2.0, MarkupSafe 3.0.4, urllib3 2.8.0, email-validator 2.4.0, Pillow 11.3.0 -> **13.0.0**.
+  - **Flask-SQLAlchemy 2.5.1 -> 3.0.5**: 2.5.1 does not work with Flask 3 (it imports `_app_ctx_stack`, removed in Flask 3.0). 3.0.5 is the last release that still supports SQLAlchemy 1.4, so SQLAlchemy stays at 1.4.54 here and moves to 2.0 (with Flask-SQLAlchemy 3.1) in A18.
+  - `psycopg2` -> **`psycopg2-binary` 2.9.13** (prebuilt wheels, no compiler needed; same import name `psycopg2`, so `postgresql://` URLs work unchanged).
+  - Removed the temporary `setuptools` pin from A16 (Flask 3 finds `flask db` without `pkg_resources`) and `python-editor` (no longer used by Alembic).
+  - Favicon bug: `react_root` now uses `flask.send_from_directory(app.static_folder, 'favicon.ico')`.
+  - Flask-SQLAlchemy 3 resolves a relative SQLite URL (`sqlite:///dev.db`) against the `instance/` folder instead of the `app/` package. `create_app()` turns a relative SQLite path into `app/<path>`, so your existing `app/dev.db` is still the database that `DATABASE_URL=sqlite:///dev.db` points to (no surprise empty database).
+  - Checked for the other Flask 3 breaking changes: `FLASK_ENV` is no longer used (A11), no `before_first_request`, no `_app_ctx_stack`/`_request_ctx_stack`, no `json_encoder`, forms have no custom `Meta`. Nothing else needed changing.
+- **Files:** `requirements.txt`, `app/__init__.py`, `app/config.py` (comment only)
+- **How to verify:**
+  1. `pip install -r requirements.txt -r requirements-dev.txt` in a fresh Python 3.12 venv (no compiler or `pg_config` needed any more), then `pip check` -> "No broken requirements".
+  2. `flask db upgrade && flask seed all && flask run` -> app works; demo login works.
+  3. `pip-audit -r requirements.txt` -> "No known vulnerabilities found".
+  4. Existing users can still log in (Werkzeug 3 hashes *new* passwords with scrypt but still verifies the old pbkdf2 hashes).
+  Verified on Python 3.12: fresh DB upgrade + seed; 87-request API snapshot identical to baseline; all Batch 1 test scripts pass; schema check 0 differences; **a copy of your `app/dev.db`** upgraded from `0a0f8863271d` to `b7c1e9a4d2f3`, `flask seed all` skipped it, demo login worked with the old password hash; gunicorn and `flask run` both serve the app; `/favicon.ico`, `/`, `/routes/5` and unknown paths served correctly from a stand-in build folder; `pip-audit`: 142 -> **0** known vulnerabilities.
+- **Things to watch:**
+  - Your real `app/dev.db` is still at migration `0a0f8863271d` (Batch 1 only tested the A15 migration on a copy). Run `cp app/dev.db app/dev.db.bak && flask db upgrade` once.
+  - In debug mode (`flask run` with `FLASK_DEBUG=1`) JSON responses are pretty-printed; that is a Flask 2.2+ default and does not change the data.
+  - The SQLAlchemy "2.0 deprecated API" warning shown on startup is expected until A18.
+  - Pillow jumped two major versions (11 -> 13); the upload code only uses `Image.open`, `verify()` and `format`, which are unchanged, and the upload tests pass.
