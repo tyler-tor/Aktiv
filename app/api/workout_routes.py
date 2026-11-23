@@ -69,11 +69,15 @@ def one_workout(id):
 @workout_routes.route('/<int:id>', methods=['PUT'])
 @login_required
 def update_workout(id):
+    workout = Workout.query.get(id)
+    if workout is None:
+        return {'errors': ['Workout not found']}, 404
+    if workout.user_id != current_user.id:
+        return {'errors': ['You can only edit your own workouts']}, 403
     form = CreateWorkoutForm()
     form['csrf_token'].data = request.cookies['csrf_token']
     if form.validate_on_submit():
-        workout = Workout.query.get(id)
-        workout.set_kwargs(**form.data)
+        workout.set_kwargs(**{field: form.data[field] for field in Workout.EDITABLE_FIELDS})
         db.session.commit()
         return workout.to_dict()
     return {'errors': validation_errors_to_error_messages(form.errors)}, 401

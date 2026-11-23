@@ -49,3 +49,21 @@ _None yet._
   - The file still exists in old commits (history not rewritten). It only holds seed data with the well-known demo password, so that is low risk.
   - Anyone who pulls this branch will see `app/dev.db` **deleted** from their working copy when git applies the removal. They just recreate it with `flask db upgrade && flask seed all`.
   - A38 (later batch) moves local development to Postgres in Docker.
+
+## A3 — Ownership checks on update endpoints
+- **Problem:** `PUT /api/routes/<id>` and `PUT /api/workouts/<id>` only checked that *someone* was logged in, never that the record belonged to them. Because the demo login is public, anyone on the internet could log in as the demo user and run e.g. `fetch('/api/routes/7', {method:'PUT', body: ...})` to rewrite another user's route. The handlers also did `route.set_kwargs(**form.data)`, which blindly copied **every** form field onto the model (including `csrf_token`), so any field added to the form later (say `user_id`) could have been used to re-assign records. A missing id crashed with a 500 (`NoneType has no attribute set_kwargs`).
+- **What changed:**
+  - Both update endpoints now load the record first: missing -> **404** `{"errors": ["Route not found"]}`; owned by someone else -> **403** `{"errors": ["You can only edit your own routes"]}`; only then is the form validated.
+  - `Route` and `Workout` have an `EDITABLE_FIELDS` tuple (the columns a user may edit). `set_kwargs()` now ignores any key not in that list, and the endpoints only pass those fields. `user_id`, `id`, timestamps and `csrf_token` can never be changed through the API.
+- **Files:** `app/api/route_routes.py`, `app/api/workout_routes.py`, `app/models/route.py`, `app/models/workout.py`
+- **How to verify:** (log in as the demo user in the browser, then in the dev tools console - after A6 you also need the `X-CSRFToken` header)
+  1. Find a route owned by another user (e.g. `GET /api/routes/` and pick one whose `userId` is not yours).
+  2. `PUT /api/routes/<that id>` with a full JSON body -> **403**, and the route is unchanged.
+  3. `PUT /api/routes/99999` -> **404**.
+  4. `PUT` on your own route with `"user_id": 2` in the body -> **200**, the title changes but `userId` stays yours.
+  5. Same three checks for `/api/workouts/<id>`.
+  Verified with Flask's test client against a freshly seeded SQLite DB (all 8 checks passed).
+- **Things to watch / follow-ups:**
+  - Delete endpoints already checked ownership, but returned 200 with an error body when it failed; A8 fixes their status codes.
+  - The frontend did not show these errors (missing `await` on `response.json()`); fixed in A8.
+  - A50 (later batch) will turn these manual checks into automated tests.

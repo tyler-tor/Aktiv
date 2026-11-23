@@ -72,14 +72,17 @@ def one_route(id):
 @route_routes.route('/<int:id>', methods=['PUT'])
 @login_required
 def update_route(id):
+    route = Route.query.get(id)
+    if route is None:
+        return {'errors': ['Route not found']}, 404
+    if route.user_id != current_user.id:
+        return {'errors': ['You can only edit your own routes']}, 403
     form = CreateRouteForm()
     form['csrf_token'].data = request.cookies['csrf_token']
     if form.validate_on_submit():
-        route = Route.query.get(id)
-        route.set_kwargs(**form.data)
+        route.set_kwargs(**{field: form.data[field] for field in Route.EDITABLE_FIELDS})
         db.session.commit()
         return route.to_dict()
-    # print('form----', form)
     return {'errors': validation_errors_to_error_messages(form.errors)}, 401
 
 

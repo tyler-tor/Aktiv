@@ -23,10 +23,16 @@ class Workout(db.Model):
     comments = db.relationship('Comment', back_populates='workouts', cascade='all, delete-orphan', single_parent=True)
 
 
-    #update instance method. Will need to set states on frontend to prevent errors from nonupdated fields
+    # Only these columns may be changed through the edit endpoint. Anything else
+    # (id, user_id, created_at, csrf_token, ...) is silently ignored so a
+    # request can never re-assign a workout to another user.
+    EDITABLE_FIELDS = ('title', 'description', 'type', 'total_time',
+                       'image_url', 'distance')
+
     def set_kwargs(self, **kwargs):
         for key, value in kwargs.items():
-            setattr(self, key, value)
+            if key in self.EDITABLE_FIELDS:
+                setattr(self, key, value)
         return self
 
 

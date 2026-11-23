@@ -32,10 +32,17 @@ class Route(db.Model):
     comments = db.relationship(
         'Comment', back_populates='routes', cascade='all, delete-orphan')
 
-# update instance method. Will need to set states on frontend to prevent errors from nonupdated fields
+    # Only these columns may be changed through the edit endpoint. Anything else
+    # (id, user_id, created_at, csrf_token, ...) is silently ignored so a
+    # request can never re-assign a route to another user.
+    EDITABLE_FIELDS = ('title', 'description', 'image_url', 'start_lat',
+                       'start_lng', 'end_lat', 'end_lng', 'distance',
+                       'traveling_mode')
+
     def set_kwargs(self, **kwargs):
         for key, value in kwargs.items():
-            setattr(self, key, value)
+            if key in self.EDITABLE_FIELDS:
+                setattr(self, key, value)
         return self
 
     def to_dict(self):
