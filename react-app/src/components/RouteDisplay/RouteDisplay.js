@@ -7,6 +7,7 @@ import { NavLink } from 'react-router-dom';
 import Comments from '../Comments/Comments';
 import MapAdjustment from '../MapAdjustment/MapAdjustment';
 import './RouteDisplay.css';
+import { GOOGLE_MAPS_API_KEY } from '../../config';
 
 const DefaultCenter = {
     lat: 47.649133,
@@ -25,7 +26,7 @@ function RouteDisplay() {
 
     const { isLoaded } = useLoadScript({
         id: 'google-map-script',
-        googleMapsApiKey: currUser.mapKey
+        googleMapsApiKey: GOOGLE_MAPS_API_KEY
     })
 
     const directionsCallback = (response) => {
@@ -54,7 +55,7 @@ function RouteDisplay() {
             <div className='route-map-info-container'>
                 {loaded && isLoaded ?
                     <>
-                        <script async defer src={`https://maps.googleapis.com/maps/api/js?key=${currUser.mapKey}&callback=initMap`}></script>
+                        <script async defer src={`https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&callback=initMap`}></script>
                         <div id='map'>
                             <GoogleMap
                                 zoom={10}

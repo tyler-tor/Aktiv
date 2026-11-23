@@ -5,6 +5,7 @@ import { getAllRoutes } from '../../store/routes';
 import { getAllWorkouts } from '../../store/workouts';
 import { NavLink } from 'react-router-dom';
 import './ActivityFeed.css';
+import { GOOGLE_MAPS_API_KEY } from '../../config';
 
 function ActivityFeed() {
     const dispatch = useDispatch();
@@ -32,18 +33,18 @@ function ActivityFeed() {
             if (friendsRoutes && routes) {
                 let arr = (following === 'Following') ? [...friendsRoutes] : [...routes]
                 for (let route of arr) {
-                    await fetch(`https://maps.googleapis.com/maps/api/directions/json?origin=${route.startingPoint.lat},${route.startingPoint.lng}&destination=${route.endingPoint.lat},${route.endingPoint.lng}&mode=${route.travelMode}&key=${currUser.mapKey}`).then(async (res) => {
+                    await fetch(`https://maps.googleapis.com/maps/api/directions/json?origin=${route.startingPoint.lat},${route.startingPoint.lng}&destination=${route.endingPoint.lat},${route.endingPoint.lng}&mode=${route.travelMode}&key=${GOOGLE_MAPS_API_KEY}`).then(async (res) => {
                         if (res.ok) {
                             let jsonify = await res.json()
                             route['directionsFetch'] = jsonify
-                            route['routeMapSrc'] = `https://maps.googleapis.com/maps/api/staticmap?size=500x400&markers=${route.startingPoint.lat},${route.startingPoint.lng}|${route.endingPoint.lat},${route.endingPoint.lng}&path=enc:${route.directionsFetch.routes[0].overview_polyline.points}&key=${currUser.mapKey}`
+                            route['routeMapSrc'] = `https://maps.googleapis.com/maps/api/staticmap?size=500x400&markers=${route.startingPoint.lat},${route.startingPoint.lng}|${route.endingPoint.lat},${route.endingPoint.lng}&path=enc:${route.directionsFetch.routes[0].overview_polyline.points}&key=${GOOGLE_MAPS_API_KEY}`
                         }
                     })
                 }
                 setPolyRoutes(arr)
             }
         })();
-    }, [currUser.mapKey, following, dispatch, merged])
+    }, [following, dispatch, merged])
 
     useEffect(() => {
         dispatch(getAllRoutes());

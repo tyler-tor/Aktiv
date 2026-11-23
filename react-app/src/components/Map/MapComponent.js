@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { useSelector, useDispatch } from 'react-redux'
 import { getAllRoutes } from "../../store/routes";
 import './MapComponent.css'
+import { GOOGLE_MAPS_API_KEY } from '../../config';
 
 const containerStyle = {
     width: '100vw',
@@ -15,12 +16,11 @@ const containerStyle = {
 const MapComponent = ({ lat, lng }) => {
     const dispatch = useDispatch()
     const routes = Object.values(useSelector(state => state.routes.routes ? state.routes.routes : {}));
-    const currUser = useSelector(state => state.session.user)
     const [selected, setSelected] = useState(null)
     //loads the map if the api key for google maps api exist
     const { isLoaded } = useLoadScript({
         id: 'google-map-script',
-        googleMapsApiKey: currUser.mapKey
+        googleMapsApiKey: GOOGLE_MAPS_API_KEY
     });
     //sets the center of the map based on the lat,lng props that are passed
     const center = useMemo(() => {
@@ -42,7 +42,7 @@ const MapComponent = ({ lat, lng }) => {
     return routes && isLoaded ? (
         <>
             <div id='map'>
-            <script async defer src={`https://maps.googleapis.com/maps/api/js?key=${currUser.mapKey}&callback=initMap`}>
+            <script async defer src={`https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&callback=initMap`}>
             </script>
                 <GoogleMap
                     mapContainerStyle={containerStyle}

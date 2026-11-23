@@ -11,7 +11,6 @@ from .api.workout_routes import workout_routes
 from .api.comments_routes import comment_routes
 from .api.me_routes import me_routes
 from .api.img_routes import img_routes
-from .api.map_routes import map_routes
 from .seeds import seed_commands
 from .config import APP_ENV, get_config, check_secret_key
 from app.models.db import db, environment, SCHEMA
@@ -44,7 +43,6 @@ app.register_blueprint(workout_routes, url_prefix='/api/workouts')
 app.register_blueprint(comment_routes, url_prefix='/api/comments')
 app.register_blueprint(img_routes, url_prefix='/api/img')
 app.register_blueprint(me_routes, url_prefix='/api/me')
-app.register_blueprint(map_routes, url_prefix='/api/map')
 db.init_app(app)
 Migrate(app, db)
 

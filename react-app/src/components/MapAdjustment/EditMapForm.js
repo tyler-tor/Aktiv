@@ -3,6 +3,7 @@ import { useSelector, useDispatch } from 'react-redux'
 import { updateRoute } from '../../store/routes';
 import { GoogleMap, useLoadScript, Marker, DistanceMatrixService } from '@react-google-maps/api';
 import './MapAdjustment.css'
+import { GOOGLE_MAPS_API_KEY } from '../../config';
 
 
 function EditMapForm({ route, onClose, setResponse, setLoaded }) {
@@ -18,7 +19,7 @@ function EditMapForm({ route, onClose, setResponse, setLoaded }) {
 
     const { isLoaded } = useLoadScript({
         id: 'google-map-script',
-        googleMapsApiKey: currUser.mapKey
+        googleMapsApiKey: GOOGLE_MAPS_API_KEY
     })
 
     const center = {
@@ -72,7 +73,7 @@ function EditMapForm({ route, onClose, setResponse, setLoaded }) {
                 <div className='emf-mapadjust'>
                     {isLoaded ?
                         <>
-                            <script async defer src={`https://maps.googleapis.com/maps/api/js?key=${currUser.mapKey}&callback=initMap`}></script>
+                            <script async defer src={`https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&callback=initMap`}></script>
                             <div id='map'>
                                 <GoogleMap
                                     zoom={6}

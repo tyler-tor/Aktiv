@@ -1,6 +1,5 @@
 from flask import Blueprint, jsonify, session, request
 from app.models import User, db
-import os
 from app.forms import LoginForm
 from app.forms import SignUpForm
 from flask_login import current_user, login_user, logout_user, login_required
@@ -37,7 +36,6 @@ def authenticate():
         non_friends = User.query.filter(User.username.notin_([dict(friend)['username'] for friend in friends])).all()
         #only allow users that are not the current user
         user_dict['nonFriends'] = [user.to_dict() for user in non_friends if user.id != current_user.id]
-        user_dict['mapKey'] = os.environ.get('REACT_APP_NEXT_PUBLIC_GOOGLE_MAPS_API_KEY')
         return user_dict
     return {'errors': ['Unauthorized']}
 
@@ -67,7 +65,6 @@ def login():
     non_friends = User.query.filter(User.username.notin_([dict(friend)['username'] for friend in friends])).all()
     #only allow users that are not the current user
     user_dict['nonFriends'] = [user.to_dict() for user in non_friends if user.id != current_user.id]
-    user_dict['mapKey'] = os.environ.get('REACT_APP_NEXT_PUBLIC_GOOGLE_MAPS_API_KEY')
     return user_dict
 
 
@@ -104,7 +101,6 @@ def sign_up():
         db.session.commit()
         login_user(user)
         user_dict = user.to_dict()
-        user_dict['mapKey'] = os.environ.get('REACT_APP_NEXT_PUBLIC_GOOGLE_MAPS_API_KEY')
         return user_dict
     return {'errors': validation_errors_to_error_messages(form.errors)}, 400
 

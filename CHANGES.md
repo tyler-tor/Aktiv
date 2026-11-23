@@ -248,3 +248,27 @@ changed, which files were touched, how to check it yourself, and what to keep an
   - `.flaskenv` has `FLASK_DEBUG=1`: never use `flask run` in production (use gunicorn, which ignores `.flaskenv`).
   - A16 (later) turns this into an app factory `create_app(config_name)` that uses these config classes directly.
   - The `react_root` favicon branch calls `app.send_from_directory`, which doesn't exist; left for A17 as planned.
+
+## A12 — Google Maps API key handling
+- **Problem:** Flask read the Maps key from `REACT_APP_NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` and handed it out at runtime in every `/api/auth/` and `/api/auth/login` response (`mapKey`) plus a dedicated `/api/map/key` endpoint. A browser key is public by nature (it ends up in the page either way), so the real protection is **restricting** the key in Google Cloud - but the setup encouraged one unrestricted key in the server `.env`, which could then be reused for any Google API on your bill. It also made every component wait for the user object before maps could load. (The key is not committed anywhere in the current tree or history - keep it that way.)
+- **What changed:**
+  - The browser key is now injected **at build time**: new `react-app/src/config.js` exports `GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY`, and the 5 map components (`Map`, `NewMap`, `RouteDisplay`, `MapAdjustment/EditMapForm`, `ActivityFeed`) use it instead of `currUser.mapKey`. In development a console warning appears if it's missing.
+  - Removed `mapKey` from the auth responses, deleted `app/api/map_routes.py` (`/api/map/key`) and the unused `store/map.js` reducer.
+  - `react-app/.env.example` documents `REACT_APP_GOOGLE_MAPS_API_KEY`; the root `.env.example` no longer has a Maps key and explains where it went.
+  - The CRA naming (`REACT_APP_`) is used for now; A19 (Vite) renames it to `VITE_GOOGLE_MAPS_API_KEY`.
+- **Files:** `app/api/auth_routes.py`, `app/api/map_routes.py` (deleted), `app/__init__.py`, `react-app/src/config.js` (new), `react-app/src/store/map.js` (deleted), `react-app/src/store/index.js`, `react-app/src/components/{Map/MapComponent,NewMap/NewRoute,RouteDisplay/RouteDisplay,MapAdjustment/EditMapForm,ActivityFeed/ActivityFeed}.js`, `.env.example`, `react-app/.env.example`
+- **How to create and restrict the keys (you need to do this - no key was available here):**
+  1. Google Cloud Console -> create (or pick) a project -> **Billing**: attach billing and create a **budget alert** (e.g. $5/month, email at 50/90/100%).
+  2. **APIs & Services -> Library**: enable *Maps JavaScript API*, *Maps Static API* and (for the current feed/route pages) *Directions API*.
+  3. **APIs & Services -> Credentials -> Create credentials -> API key** -> name it "Aktiv browser".
+     - *Application restrictions*: **Websites (HTTP referrers)**: `http://localhost:3000/*`, `http://localhost:5000/*`, and your production URL, e.g. `https://aktiv.example.com/*`.
+     - *API restrictions*: **Restrict key** -> Maps JavaScript API, Maps Static API (add Directions API only while the browser still calls it - see below).
+  4. Put it in `react-app/.env.local` (git-ignored): `REACT_APP_GOOGLE_MAPS_API_KEY=AIza...`, then restart `npm start`. For a production build, set the same variable in the build environment (CI secret or `react-app/.env.production.local`) before `npm run build`.
+  5. Later (A28): a second key "Aktiv server" restricted by **IP address** (the EC2 Elastic IP) and to the Directions API only, used by Flask as `GOOGLE_MAPS_SERVER_KEY`.
+- **How to verify:**
+  1. `GET /api/auth/` -> response has no `mapKey`; `GET /api/map/key` -> 404.
+  2. With the key in `react-app/.env.local`, `npm start` -> maps load on New Route / route pages. Without it -> console warning "REACT_APP_GOOGLE_MAPS_API_KEY is not set".
+  Verified: backend checks with the test client; `npm run build` compiles (see A14). Maps rendering itself was **not** verified (no key available).
+- **Things to watch / follow-ups:**
+  - `ActivityFeed.js` still calls the Directions **web service** from the browser with this key. Google generally blocks that (CORS) and a referrer-restricted key is rejected by web-service APIs, so feed thumbnails may not load - that is the existing behaviour, fixed properly by A28 (server computes polylines with the server key).
+  - Changing the key requires a rebuild of the frontend (it's baked in).
