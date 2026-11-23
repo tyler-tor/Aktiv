@@ -29,7 +29,7 @@ def all_routes():
     """
     Returns all routes in a list of route dictionaries
     """
-    routes = Route.query.all()
+    routes = db.session.scalars(db.select(Route)).all()
     return {'routes': [route.to_dict() for route in routes]}
 
 
@@ -71,7 +71,7 @@ def one_route(id):
     """
     Returns one route by id (404 if it does not exist)
     """
-    route = Route.query.get(id)
+    route = db.session.get(Route, id)
     if route is None:
         return route_not_found()
     return route.to_dict()
@@ -84,7 +84,7 @@ def update_route(id):
     """
     Updates one of the current user's routes (404 missing, 403 not yours)
     """
-    route = Route.query.get(id)
+    route = db.session.get(Route, id)
     if route is None:
         return route_not_found()
     if route.user_id != current_user.id:
@@ -104,7 +104,7 @@ def delete_route(id):
     """
     Deletes one of the current user's routes (404 missing, 403 not yours)
     """
-    route = Route.query.get(id)
+    route = db.session.get(Route, id)
     if route is None:
         return route_not_found()
     if route.user_id != current_user.id:
@@ -121,7 +121,7 @@ def get_comments_to_route(id):
     """
     Returns all comments on a route (404 if the route does not exist)
     """
-    route = Route.query.get(id)
+    route = db.session.get(Route, id)
     if route is None:
         return route_not_found()
     return {'comments': [comment.to_dict() for comment in route.comments]}
@@ -134,7 +134,7 @@ def add_comment_to_route(id):
     """
     Adds a comment by the current user to a route (404 if the route does not exist)
     """
-    route = Route.query.get(id)
+    route = db.session.get(Route, id)
     if route is None:
         return route_not_found()
     form = CreateCommentForm()

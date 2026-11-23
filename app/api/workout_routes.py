@@ -30,7 +30,7 @@ def all_workouts():
     """
     Returns all workouts in a list of workout dictionaries
     """
-    workouts = Workout.query.all()
+    workouts = db.session.scalars(db.select(Workout)).all()
     return {'workouts': [workout.to_dict() for workout in workouts]}
 
 
@@ -68,7 +68,7 @@ def one_workout(id):
     """
     Returns one workout by id (404 if it does not exist)
     """
-    workout = Workout.query.get(id)
+    workout = db.session.get(Workout, id)
     if workout is None:
         return workout_not_found()
     return workout.to_dict()
@@ -81,7 +81,7 @@ def update_workout(id):
     """
     Updates one of the current user's workouts (404 missing, 403 not yours)
     """
-    workout = Workout.query.get(id)
+    workout = db.session.get(Workout, id)
     if workout is None:
         return workout_not_found()
     if workout.user_id != current_user.id:
@@ -101,7 +101,7 @@ def delete_workout(id):
     """
     Deletes one of the current user's workouts (404 missing, 403 not yours)
     """
-    workout = Workout.query.get(id)
+    workout = db.session.get(Workout, id)
     if workout is None:
         return workout_not_found()
     if workout.user_id != current_user.id:
@@ -118,7 +118,7 @@ def add_comment_to_workout(id):
     """
     Adds a comment by the current user to a workout (404 if it does not exist)
     """
-    workout = Workout.query.get(id)
+    workout = db.session.get(Workout, id)
     if workout is None:
         return workout_not_found()
     form = CreateCommentForm()

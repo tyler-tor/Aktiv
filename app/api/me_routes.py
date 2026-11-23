@@ -8,7 +8,7 @@ me_routes = Blueprint('me', __name__)
 @me_routes.route('/friends/activity')
 @login_required
 def friend_activity():
-    user = User.query.get(current_user.id)
+    user = db.session.get(User, current_user.id)
 
     if user:
         friends = user.to_dict()['friends']
@@ -17,8 +17,8 @@ def friend_activity():
         workout_list = []
 
         for i in range(len(friends)):
-            routes = Route.query.filter(Route.user_id == friends[i]['userId']).order_by(Route.created_at.desc()).all()
-            workouts = Workout.query.filter(Workout.user_id == friends[i]['userId']).order_by(Workout.created_at.desc()).all()
+            routes = db.session.scalars(db.select(Route).where(Route.user_id == friends[i]['userId']).order_by(Route.created_at.desc())).all()
+            workouts = db.session.scalars(db.select(Workout).where(Workout.user_id == friends[i]['userId']).order_by(Workout.created_at.desc())).all()
             [workout_list.append(workout.to_dict()) for workout in workouts]
             [route_list.append(route.to_dict()) for route in routes]
         act_dict = {'routes': route_list, 'workouts': workout_list}

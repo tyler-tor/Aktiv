@@ -21,6 +21,7 @@ at the end of this file.
 - **A0 (new item, Batch 2):** not in the original plan; added at Tyler's request before the upgrades. Beyond the brief, `flask seed undo` is also refused in production (it deletes everything just like `--reset`).
 - **A16 pins:** the plan leaves all version upgrades to A17, but the old pins cannot be installed or run on Python 3.12, so A16 bumps only what 3.12 strictly needs (greenlet 3.5.6, SQLAlchemy 1.4.54, six 1.17.0) and temporarily pins setuptools 80.10.2 (pkg_resources for Flask 2.0's CLI). `requirements.txt` was kept (no pyproject/uv lock) to stay closest to the existing setup.
 - **A17 extra packages:** besides the packages the plan lists, A17 also upgrades Flask-SQLAlchemy to 3.0.5 (2.5.1 cannot run on Flask 3; SQLAlchemy stays 1.4 until A18) and Pillow 11.3 -> 13.0 plus all transitive pins (urllib3, idna, dnspython, Mako, ...), because they carried most of the pip-audit findings. Alembic is 1.19.2, not 1.20.x: 1.20 needs SQLAlchemy 2.0, so it moves to the latest in A18.
+- **A18 timestamps / typed models:** the plan suggests timezone-aware timestamps. Values are now UTC (`datetime.now(timezone.utc)`), but stored without tzinfo because the columns are `DateTime` without time zone; switching them to `DateTime(timezone=True)` (Postgres `timestamptz`) needs a migration that rewrites 8 columns and is best tested on real Postgres (A38), so it was left out. The optional typed `Mapped[]` columns were also skipped (no behaviour change, larger diff, more migration-drift risk).
 
 ## Open questions for Tyler
 
@@ -425,3 +426,29 @@ at the end of this file.
   - In debug mode (`flask run` with `FLASK_DEBUG=1`) JSON responses are pretty-printed; that is a Flask 2.2+ default and does not change the data.
   - The SQLAlchemy "2.0 deprecated API" warning shown on startup is expected until A18.
   - Pillow jumped two major versions (11 -> 13); the upload code only uses `Image.open`, `verify()` and `format`, which are unchanged, and the upload tests pass.
+
+## A18 — SQLAlchemy 2.0 + Flask-SQLAlchemy 3.1
+- **Problem:** The code used the SQLAlchemy 1.x "legacy" query API everywhere: `Model.query.get(id)` (deprecated in 2.0), `Model.query.filter(...).first()/.all()`, `notin_`. Raw SQL strings passed to `execute()` (the migration env's `CREATE SCHEMA`; the seed TRUNCATEs were already removed in A0) **raise an error** in 2.0. In 2.0 `str(engine.url)` also hides the password as `***`, so `migrations/env.py` would have handed Alembic a broken Postgres URL. Timestamps defaulted to `datetime.now` = the app server's **local** time, but the API sends them as `... GMT`, so on a server not set to UTC every `createdAt` was off by the UTC offset (and disagreed with the database's own `CURRENT_TIMESTAMP` default, which is UTC).
+- **What changed:**
+  - SQLAlchemy 1.4.54 -> **2.0.58**, Flask-SQLAlchemy 3.0.5 -> **3.1.1**, Alembic 1.19.2 -> **1.20.1**. (SQLAlchemy 2.1 exists, but Flask-SQLAlchemy 3.1 and the plan target 2.0; 2.0 is still maintained.)
+  - Every query uses the 2.0 style:
+    - `Model.query.get(id)` -> `db.session.get(Model, id)` (routes, workouts, comments, users, friends, `load_user`).
+    - `Model.query.all()` -> `db.session.scalars(db.select(Model)).all()`.
+    - `Model.query.filter(...).first()` -> `db.session.scalar(db.select(Model).where(...))` (login, sign-up uniqueness checks).
+    - Friend-activity feed: `db.session.scalars(db.select(Route).where(...).order_by(...)).all()`; `notin_` -> `not_in`.
+    - The seeds (A0) already use `select()` / `delete()`.
+  - `migrations/env.py`: `CREATE SCHEMA` wrapped in `text()` and followed by `connection.commit()` (2.0 auto-begins a transaction on the first `execute()`; without the commit Alembic would join that transaction and the migration would be rolled back when the connection closes). The URL is rendered with `url.render_as_string(hide_password=False)`.
+  - New `utcnow()` helper in `app/models/db.py` (`datetime.now(timezone.utc)`), used as the Python default/onupdate for every `created_at`/`updated_at`, so all timestamps are UTC.
+  - `lazy='dynamic'` relationships (friends) and `backref` still work in 2.0 and were left as they are (behaviour unchanged).
+- **Files:** `requirements.txt`, `app/__init__.py`, `app/api/auth_routes.py`, `app/api/comments_routes.py`, `app/api/me_routes.py`, `app/api/route_routes.py`, `app/api/user_routes.py`, `app/api/workout_routes.py`, `app/forms/signup_form.py`, `app/models/db.py`, `app/models/user.py`, `app/models/route.py`, `app/models/workout.py`, `app/models/comment.py`, `migrations/env.py`
+- **How to verify:**
+  1. `pip install -r requirements.txt` -> SQLAlchemy 2.0.58; `flask db upgrade && flask seed all && flask run` works; demo login works.
+  2. `python -W default -c "from app import create_app; create_app()"` and click around: no `LegacyAPIWarning` / "2.0 deprecated" warnings.
+  3. `flask db downgrade base && flask db upgrade` -> both migrations (`0a0f8863271d`, `b7c1e9a4d2f3`) apply cleanly; `flask db check` -> "No new upgrade operations detected." (models and DB agree).
+  4. Create a workout; its `createdAt` matches the current **UTC** time.
+  Verified on Python 3.12 / SQLite: 87-request API snapshot identical to baseline; all Batch 1 test scripts pass; no SQLAlchemy warnings from app code; fresh `upgrade` / `downgrade` to base / `upgrade` all clean; `flask db check` clean; **a copy of your `app/dev.db`** upgraded `0a0f8863271d -> b7c1e9a4d2f3`, seed skipped, `flask db check` clean; the production (Postgres, `SCHEMA=flask_schema`) upgrade SQL was generated offline with `APP_ENV=production flask db upgrade --sql` and has the same schema-qualified statements as in Batch 1. With `TZ=America/Denver`, a new workout's `createdAt` is the UTC time (it used to be Denver time labelled GMT).
+- **Things to watch:**
+  - **Not run against a live Postgres** (none can be installed here). The online migration path with `SCHEMA` (`CREATE SCHEMA` + `commit()`) is the one piece only reviewed, not executed. Test on a Postgres copy first (or with Docker Postgres in A38).
+  - Columns are still `DateTime` *without* time zone: values are UTC but stored "naive" (see Deviations). Rows created before this change hold server-local times.
+  - During `flask db upgrade` on SQLite, Alembic 1.20 now *warns* "Unnamed CHECK constraint on reflected table 'routes' is being omitted". Alembic 1.6 silently did the same thing (verified: the resulting `routes` table is identical with both versions). Harmless.
+  - Typed `Mapped[...]` models (optional in the plan) were not done; the classic `db.Column` style is fully supported in 2.0.

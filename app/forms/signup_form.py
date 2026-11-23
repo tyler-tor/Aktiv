@@ -1,7 +1,7 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField
 from wtforms.validators import DataRequired, Email, Length, Optional, ValidationError
-from app.models import User
+from app.models import User, db
 
 # Keep in sync with the frontend hint on the sign-up page.
 MIN_PASSWORD_LENGTH = 8
@@ -10,7 +10,7 @@ MIN_PASSWORD_LENGTH = 8
 def user_exists(form, field):
     # Checking if user exists
     email = field.data
-    user = User.query.filter(User.email == email).first()
+    user = db.session.scalar(db.select(User).where(User.email == email))
     if user:
         raise ValidationError('Email address is already in use.')
 
@@ -18,7 +18,7 @@ def user_exists(form, field):
 def username_exists(form, field):
     # Checking if username is already in use
     username = field.data
-    user = User.query.filter(User.username == username).first()
+    user = db.session.scalar(db.select(User).where(User.username == username))
     if user:
         raise ValidationError('Username is already in use.')
 

@@ -33,7 +33,7 @@ def authenticate():
         #getting list of friends
         friends = user_dict['friends']
         #query to exclude friends from user table
-        non_friends = User.query.filter(User.username.notin_([dict(friend)['username'] for friend in friends])).all()
+        non_friends = db.session.scalars(db.select(User).where(User.username.not_in([dict(friend)['username'] for friend in friends]))).all()
         #only allow users that are not the current user
         user_dict['nonFriends'] = [user.to_dict() for user in non_friends if user.id != current_user.id]
         return user_dict
@@ -48,7 +48,7 @@ def login():
     form = LoginForm()
     if not form.validate_on_submit():
         return {'errors': validation_errors_to_error_messages(form.errors)}, 401
-    user = User.query.filter(User.email == form.data['email']).first()
+    user = db.session.scalar(db.select(User).where(User.email == form.data['email']))
     if user is None:
         # Still run a password hash check so "unknown email" takes about as
         # long as "wrong password" (timing would otherwise reveal accounts).
@@ -62,7 +62,7 @@ def login():
     #getting list of friends
     friends = user_dict['friends']
     #query to exclude friends from user table
-    non_friends = User.query.filter(User.username.notin_([dict(friend)['username'] for friend in friends])).all()
+    non_friends = db.session.scalars(db.select(User).where(User.username.not_in([dict(friend)['username'] for friend in friends]))).all()
     #only allow users that are not the current user
     user_dict['nonFriends'] = [user.to_dict() for user in non_friends if user.id != current_user.id]
     return user_dict

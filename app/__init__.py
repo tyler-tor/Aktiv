@@ -69,7 +69,7 @@ def create_app(config_name=None):
 
 @login.user_loader
 def load_user(id):
-    return User.query.get(int(id))
+    return db.session.get(User, int(id))
 
 
 # No CORS: the React app is always served from the same origin as the API

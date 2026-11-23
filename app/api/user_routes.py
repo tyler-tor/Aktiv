@@ -10,7 +10,7 @@ user_routes = Blueprint('users', __name__)
 @login_required
 def users():
 
-    users = User.query.all()
+    users = db.session.scalars(db.select(User)).all()
     return {'users': [user.to_dict() for user in users]}
 
 
@@ -18,7 +18,7 @@ def users():
 @user_routes.route('/<int:id>')
 @login_required
 def user(id):
-    user = User.query.get(id)
+    user = db.session.get(User, id)
     if user:
         return user.to_dict()
     return {'errors': ['This user does not exist!']}, 404
@@ -28,7 +28,7 @@ def user(id):
 @user_routes.route('/<int:id>/routes')
 @login_required
 def user_route(id):
-    user = User.query.get(id)
+    user = db.session.get(User, id)
     if user:
         routes = user.to_dict()['routes']
         return {'routes': routes}
@@ -39,7 +39,7 @@ def user_route(id):
 @user_routes.route('/<int:id>/comments')
 @login_required
 def user_comments(id):
-    user = User.query.get(id)
+    user = db.session.get(User, id)
     if user:
         comments = user.to_dict()['comments']
         return {'comments': comments}
@@ -50,7 +50,7 @@ def user_comments(id):
 @user_routes.route('/<int:id>/workouts')
 @login_required
 def user_workouts(id):
-    user = User.query.get(id)
+    user = db.session.get(User, id)
     if user:
         workouts = user.to_dict()['workouts']
         return {'workouts': workouts}
@@ -61,7 +61,7 @@ def user_workouts(id):
 @user_routes.route('/<int:id>/friends')
 @login_required
 def user_friends(id):
-    user = User.query.get(id)
+    user = db.session.get(User, id)
     if user:
         friends = user.to_dict()['friends']
         return {'friends': friends}
@@ -77,8 +77,8 @@ def _is_follower(user, other):
 @user_routes.route('/<int:id>/friends', methods=['POST'])
 @login_required
 def add_user_friends(id):
-    curr_user = User.query.get(current_user.id)
-    user = User.query.get(id)
+    curr_user = db.session.get(User, current_user.id)
+    user = db.session.get(User, id)
     if user is None:
         return {'errors': ['This user does not exist!']}, 404
     if user.id == curr_user.id:
@@ -100,8 +100,8 @@ def add_user_friends(id):
 @user_routes.route('/<int:id>/friends', methods=['DELETE'])
 @login_required
 def unfriend_user(id):
-    curr_user = User.query.get(current_user.id)
-    user = User.query.get(id)
+    curr_user = db.session.get(User, current_user.id)
+    user = db.session.get(User, id)
     if user is None:
         return {'errors': ['This user does not exist!']}, 404
     if not _is_follower(curr_user, user):

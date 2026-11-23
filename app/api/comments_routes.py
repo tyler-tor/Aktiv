@@ -24,7 +24,7 @@ def all_comments():
     """
     Query for all users and returns them in a list of user dictionaries
     """
-    comments = Comment.query.all()
+    comments = db.session.scalars(db.select(Comment)).all()
     return {'comments': [comment.to_dict() for comment in comments]}
 
 
@@ -39,7 +39,7 @@ def one_comment(id):
     """
     Returns one comment by id (404 if it does not exist)
     """
-    comment = Comment.query.get(id)
+    comment = db.session.get(Comment, id)
     if comment is None:
         return comment_not_found()
     return comment.to_dict()
@@ -52,7 +52,7 @@ def update_comment(id):
     """
     Updates one of the current user's comments (404 missing, 403 not yours)
     """
-    comment = Comment.query.get(id)
+    comment = db.session.get(Comment, id)
     if comment is None:
         return comment_not_found()
     if comment.user_id != current_user.id:
@@ -72,7 +72,7 @@ def delete_comment(id):
     """
     Deletes one of the current user's comments (404 missing, 403 not yours)
     """
-    comment = Comment.query.get(id)
+    comment = db.session.get(Comment, id)
     if comment is None:
         return comment_not_found()
     if comment.user_id != current_user.id:
