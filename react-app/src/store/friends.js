@@ -1,3 +1,4 @@
+import { csrfFetch } from './csrf';
 import { authenticate } from "./session";
 import { getOneUser } from "./users";
 
@@ -21,7 +22,7 @@ const deleteFriendAction = (id) => ({
 });
 
 export const getAllFriends = (id) => async (dispatch) => {
-    const response = await fetch(`/api/users/${id}/friends`);
+    const response = await csrfFetch(`/api/users/${id}/friends`);
 
     if (response.ok) {
         const data = await response.json();
@@ -32,7 +33,7 @@ export const getAllFriends = (id) => async (dispatch) => {
 }
 
 export const addFriend = (id) => async (dispatch) => {
-    const response = await fetch(`/api/users/${id}/friends`, {
+    const response = await csrfFetch(`/api/users/${id}/friends`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -49,7 +50,7 @@ export const addFriend = (id) => async (dispatch) => {
 };
 
 export const deleteFriend = (id) => async (dispatch) => {
-    const response = await fetch(`/api/users/${id}/friends`, {
+    const response = await csrfFetch(`/api/users/${id}/friends`, {
         method: 'DELETE'
     });
     if (response.ok) {

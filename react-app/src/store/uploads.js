@@ -1,3 +1,4 @@
+import { csrfFetch } from './csrf';
 // Image upload helper shared by the sign-up, new route and new workout pages.
 
 // Must match MAX_CONTENT_LENGTH in app/config.py.
@@ -21,7 +22,7 @@ export const uploadImage = async (file) => {
     formData.append('image', file);
     let res;
     try {
-        res = await fetch('/api/img/upload', { method: 'POST', body: formData });
+        res = await csrfFetch('/api/img/upload', { method: 'POST', body: formData });
     } catch (e) {
         return { error: 'Upload failed. Check your connection and try again.' };
     }
@@ -39,7 +40,7 @@ export const uploadImage = async (file) => {
 
 // Sets the logged-in user's profile picture to an uploaded image URL.
 export const setProfilePicture = async (url) => {
-    const res = await fetch('/api/auth/profile-picture', {
+    const res = await csrfFetch('/api/auth/profile-picture', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ profile_picture: url }),

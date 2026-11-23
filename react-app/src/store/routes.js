@@ -1,3 +1,4 @@
+import { csrfFetch } from './csrf';
 const GET_ROUTES = 'workouts/GET_ROUTES';
 const ADD_ROUTE = 'workouts/ADD_ROUTE';
 const UPDATE_ROUTE = 'workouts/UPDATE_ROUTE';
@@ -25,7 +26,7 @@ const updateRouteAction = (route) => ({
 });
 
 export const getCurrentRoute = (routeId) => async (dispatch) => {
-    const res = await fetch(`/api/routes/${routeId}`)
+    const res = await csrfFetch(`/api/routes/${routeId}`)
 
     if (res.ok) {
         const data = await res.json();
@@ -40,7 +41,7 @@ const deleteRouteAction = (id) => ({
 });
 
 export const getAllRoutes = () => async (dispatch) => {
-    const response = await fetch('/api/routes/');
+    const response = await csrfFetch('/api/routes/');
 
     if (response.ok) {
         const data = await response.json();
@@ -51,7 +52,7 @@ export const getAllRoutes = () => async (dispatch) => {
 }
 
 export const addRoute = (route) => async (dispatch) => {
-    const response = await fetch('/api/routes/', {
+    const response = await csrfFetch('/api/routes/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -72,7 +73,7 @@ export const addRoute = (route) => async (dispatch) => {
 }
 
 export const updateRoute = (route) => async (dispatch) => {
-    const response = await fetch(`/api/routes/${route.id}`, {
+    const response = await csrfFetch(`/api/routes/${route.id}`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json'
@@ -103,7 +104,7 @@ export const updateRoute = (route) => async (dispatch) => {
 };
 
 export const deleteRoute = (id) => async (disptch) => {
-    const response = await fetch(`/api/routes/${id}`, {
+    const response = await csrfFetch(`/api/routes/${id}`, {
         method: 'DELETE'
     });
 

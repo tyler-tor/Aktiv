@@ -1,3 +1,4 @@
+import { csrfFetch } from './csrf';
 const GET_COMMENTS = 'comments/GET_COMMENTS';
 const WORKOUT_COMMENT = 'comments/WORKOUT_COMMENT';
 const ROUTE_COMMENT = 'comments/ROUTE_COMMENT';
@@ -35,7 +36,7 @@ const deleteCommentAction = (id) => ({
 // });
 
 export const getRouteComments = (id) => async (dispatch) => {
-    const response = await fetch(`/api/routes/${id}/comments`);
+    const response = await csrfFetch(`/api/routes/${id}/comments`);
 
     if (response.ok) {
         const data = await response.json();
@@ -47,7 +48,7 @@ export const getRouteComments = (id) => async (dispatch) => {
 };
 
 export const getWorkoutComments = (id) => async (dispatch) => {
-    const response = await fetch(`/api/workouts/${id}/comments`);
+    const response = await csrfFetch(`/api/workouts/${id}/comments`);
 
     if (response.ok) {
         const data = await response.json();
@@ -59,7 +60,7 @@ export const getWorkoutComments = (id) => async (dispatch) => {
 
 export const newRouteComment = (comment) => async (dispatch) => {
     const { routeId, body } = comment;
-    const response = await fetch(`/api/routes/${routeId}/comments`, {
+    const response = await csrfFetch(`/api/routes/${routeId}/comments`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -84,7 +85,7 @@ export const newRouteComment = (comment) => async (dispatch) => {
 
 export const newWorkoutComment = (comment) => async (dispatch) => {
     const { workoutId, body } = comment;
-    const response = await fetch(`/api/workouts/${workoutId}/comments`, {
+    const response = await csrfFetch(`/api/workouts/${workoutId}/comments`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -111,7 +112,7 @@ export const newWorkoutComment = (comment) => async (dispatch) => {
 
 export const updateComment = (comment) => async (dispatch) => {
     const { commentId, body } = comment;
-    const response = await fetch(`/api/comments/${commentId}`, {
+    const response = await csrfFetch(`/api/comments/${commentId}`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json'
@@ -136,7 +137,7 @@ export const updateComment = (comment) => async (dispatch) => {
 
 
 export const deleteComment = (commentId) => async (dispatch) => {
-    const response = await fetch(`/api/comments/${commentId}`, {
+    const response = await csrfFetch(`/api/comments/${commentId}`, {
         method: 'DELETE'
     });
 

@@ -2,7 +2,7 @@ import os
 from flask import Flask, render_template, request, session, redirect
 from flask_cors import CORS
 from flask_migrate import Migrate
-from flask_wtf.csrf import CSRFProtect, generate_csrf
+from flask_wtf.csrf import CSRFProtect, CSRFError, generate_csrf
 from flask_login import LoginManager
 from .models import db, User
 from .api.user_routes import user_routes
@@ -45,6 +45,18 @@ app.register_blueprint(map_routes, url_prefix='/api/map')
 db.init_app(app)
 Migrate(app, db)
 
+# CSRF protection for every POST/PUT/PATCH/DELETE request. The React app reads
+# the (non-httponly) csrf_token cookie and sends it back in the X-CSRFToken
+# header; Flask-WTF compares it with the token stored in the signed session.
+# A malicious site can make the browser send cookies, but cannot read them,
+# so it cannot set the header.
+csrf = CSRFProtect(app)
+
+
+@app.errorhandler(CSRFError)
+def handle_csrf_error(e):
+    return {'errors': ['CSRF token missing or invalid. Refresh the page and try again.']}, 400
+
 # Application Security
 CORS(app)
 
@@ -71,7 +83,9 @@ def inject_csrf_token(response):
         secure=True if os.environ.get('FLASK_ENV') == 'production' else False,
         samesite='Strict' if os.environ.get(
             'FLASK_ENV') == 'production' else None,
-        httponly=True)
+        # Must be readable by JavaScript so the frontend can copy it into the
+        # X-CSRFToken header. (The session cookie itself stays httponly.)
+        httponly=False)
     return response
 
 

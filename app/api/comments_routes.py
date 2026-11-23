@@ -44,7 +44,6 @@ def one_comment(id):
 @login_required
 def update_comment(id):
     form = CreateCommentForm()
-    form['csrf_token'].data = request.cookies['csrf_token']
     comment = Comment.query.get(id)
     if comment.user_id == current_user.id:
         if form.validate_on_submit():

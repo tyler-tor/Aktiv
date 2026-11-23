@@ -33,3 +33,6 @@ class Config:
     SQLALCHEMY_ECHO = True
     # Reject request bodies (e.g. image uploads) bigger than 5 MB with HTTP 413.
     MAX_CONTENT_LENGTH = 5 * 1024 * 1024
+    # CSRF tokens stay valid for the whole session (the SPA keeps one token
+    # for hours; the default 1-hour limit caused random 400s after idling).
+    WTF_CSRF_TIME_LIMIT = None

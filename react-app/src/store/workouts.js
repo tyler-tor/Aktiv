@@ -1,3 +1,4 @@
+import { csrfFetch } from './csrf';
 const GET_WORKOUTS = 'workouts/GET_WORKOUTS';
 const GET_CURRENT_WORKOUT = 'workouts/GET_CURRENT_WORKOUT'
 const ADD_WORKOUT = 'workouts/ADD_WORKOUT';
@@ -30,7 +31,7 @@ const deleteWorkoutAction = (id) => ({
 });
 
 export const getAllWorkouts = () => async (dispatch) => {
-    const response = await fetch('/api/workouts/');
+    const response = await csrfFetch('/api/workouts/');
 
     if (response.ok) {
         const data = await response.json();
@@ -41,7 +42,7 @@ export const getAllWorkouts = () => async (dispatch) => {
 };
 
 export const getCurrentWorkout = (workoutId) => async (dispatch) => {
-    const res = await fetch(`/api/workouts/${workoutId}`);
+    const res = await csrfFetch(`/api/workouts/${workoutId}`);
 
     if (res.ok) {
         const data = await res.json();
@@ -51,7 +52,7 @@ export const getCurrentWorkout = (workoutId) => async (dispatch) => {
 }
 
 export const addWorkout = (workout) => async (dispatch) => {
-    const response = await fetch('/api/workouts/', {
+    const response = await csrfFetch('/api/workouts/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -74,7 +75,7 @@ export const addWorkout = (workout) => async (dispatch) => {
 }
 
 export const updateWorkout = (workout) => async (dispatch) => {
-    const response = await fetch(`/api/workouts/${workout.id}`, {
+    const response = await csrfFetch(`/api/workouts/${workout.id}`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json'
@@ -96,7 +97,7 @@ export const updateWorkout = (workout) => async (dispatch) => {
 };
 
 export const deleteWorkout = (id) => async (disptch) => {
-    const response = await fetch(`/api/workouts/${id}`, {
+    const response = await csrfFetch(`/api/workouts/${id}`, {
         method: 'DELETE'
     });
 

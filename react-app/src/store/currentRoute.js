@@ -1,3 +1,4 @@
+import { csrfFetch } from './csrf';
 // const GET_CURRENT_ROUTE = 'current_route/GET_CURRENT_ROUTE';
 // const UPDATE_CURRENT_ROUTE = 'update_route/UPDATE_CURRENT_ROUTE'
 
@@ -12,7 +13,7 @@
 // })
 
 // export const getCurrentRoute = (routeId) => async (dispatch) => {
-//     const res = await fetch(`/api/routes/${routeId}`)
+//     const res = await csrfFetch(`/api/routes/${routeId}`)
 
 //     if (res.ok) {
 //         const data = await res.json();
@@ -22,7 +23,7 @@
 // }
 
 // export const updateCurrentRoute = (route) => async (dispatch) => {
-    // const response = await fetch(`/api/routes/${route.id}`, {
+    // const response = await csrfFetch(`/api/routes/${route.id}`, {
     //     method: 'PUT',
     //     headers: {
     //         'Content-Type': 'application/json'

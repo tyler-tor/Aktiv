@@ -33,7 +33,6 @@ def all_routes():
 @login_required
 def add_route():
     form = CreateRouteForm()
-    form['csrf_token'].data = request.cookies['csrf_token']
 
     if form.validate_on_submit():
         route = Route(
@@ -78,7 +77,6 @@ def update_route(id):
     if route.user_id != current_user.id:
         return {'errors': ['You can only edit your own routes']}, 403
     form = CreateRouteForm()
-    form['csrf_token'].data = request.cookies['csrf_token']
     if form.validate_on_submit():
         route.set_kwargs(**{field: form.data[field] for field in Route.EDITABLE_FIELDS})
         db.session.commit()
@@ -118,7 +116,6 @@ def get_comments_to_route(id):
 def add_comment_to_route(id):
     route = Route.query.get(id)
     form = CreateCommentForm()
-    form['csrf_token'].data = request.cookies['csrf_token']
 
     if form.validate_on_submit():
         comment = Comment(

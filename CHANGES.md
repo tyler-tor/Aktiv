@@ -110,3 +110,24 @@ changed, which files were touched, how to check it yourself, and what to keep an
   - Without the bucket policy, new uploads are **private** (the URL returns 403), because they no longer carry `public-read`.
   - The IAM role / instance profile and bucket are created by Terraform in A43/A44 (later batch). Minimal IAM permission for the app: `s3:PutObject` on `arn:aws:s3:::<bucket>/uploads/*`.
   - The seed data's old images point at the `capstone-strava-clone-aktiv` bucket (open question 4 in the plan).
+
+## A6 — Make CSRF protection real
+- **Problem:** CSRF = another website making your logged-in browser send a request to Aktiv (e.g. a hidden form that deletes your route). Every form handler did `form['csrf_token'].data = request.cookies['csrf_token']`, i.e. it took the token **from the cookie** and then compared it with... the same cookie's token. A forged cross-site request carries the cookie automatically, so the check always passed and protected nothing (only `SameSite=Strict` in production helped). The image upload had no check at all. And if the cookie was missing (first visit, cleared cookies) `request.cookies['csrf_token']` raised `KeyError` -> HTTP 500.
+- **What changed:**
+  - `CSRFProtect(app)` is enabled globally in `app/__init__.py`: every POST/PUT/PATCH/DELETE must send a valid `X-CSRFToken` header, which Flask-WTF checks against the token stored in the signed session. FlaskForms automatically accept a request that already passed this check.
+  - The `csrf_token` cookie is now **not** `httponly`, so JavaScript can read it (the session cookie that proves who you are is still httponly).
+  - Removed all 8 copies of `form['csrf_token'].data = request.cookies['csrf_token']` (fixes the `KeyError` 500).
+  - CSRF failures return JSON **400** `{"errors": ["CSRF token missing or invalid. Refresh the page and try again."]}` instead of an HTML page.
+  - `WTF_CSRF_TIME_LIMIT = None`: the token is valid for the life of the session (the default 1-hour expiry would make a tab left open for an hour fail its next save).
+  - Frontend: new `react-app/src/store/csrf.js` with `csrfFetch()` - same as `fetch()` but adds `X-CSRFToken` (read from the cookie) on write requests. All store files that send POST/PUT/DELETE (`session`, `routes`, `workouts`, `comments`, `friends`, `currentRoute`, `uploads`) use it.
+- **Files:** `app/__init__.py`, `app/config.py`, `app/api/auth_routes.py`, `app/api/route_routes.py`, `app/api/workout_routes.py`, `app/api/comments_routes.py`, `react-app/src/store/csrf.js` (new), `react-app/src/store/{session,routes,workouts,comments,friends,currentRoute,uploads}.js`
+- **How to verify:**
+  1. `curl -c jar -b jar http://localhost:5000/api/auth/` (gets the cookies), then `curl -b jar -X POST -H 'Content-Type: application/json' -d '{"email":"demo@aa.io","password":"password"}' http://localhost:5000/api/auth/login` -> **400** CSRF error (no header).
+  2. Same request with `-H "X-CSRFToken: <value of csrf_token from the jar file>"` -> **200**.
+  3. In the browser: demo login, create/edit/delete a route, workout and comment, add/remove a friend, upload an image - all still work (DevTools > Network shows the `X-CSRFToken` request header).
+  Verified with the Flask test client: 12 checks (no header / wrong header / no cookie -> 400, with header -> 200 for login, comments, routes, workouts, delete).
+- **Things to watch / follow-ups:**
+  - Any **new** write request in the frontend must use `csrfFetch` (or set the header itself), otherwise it gets a 400.
+  - `GET /api/auth/logout` is still a GET, so a cross-site page could log you out (annoying, not dangerous). Changing it to POST is a small later fix.
+  - If you call the API from Postman/curl, first `GET /api/auth/` to get the cookie, then copy it into the header.
+  - A50 (later) will add automated tests for this.
