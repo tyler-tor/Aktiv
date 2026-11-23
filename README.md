@@ -22,15 +22,17 @@ Welcome to my application where users can view/create/delete Routes and interact
 
 ## How to get started
   1. Copy the code sample into a local repository
-  2. Once finished 'pipenv install' to install dependencies
+  2. Install Python 3.12, then create a virtual environment and install the backend dependencies:
+    - python3.12 -m venv .venv
+    - source .venv/bin/activate   (Windows: .venv\Scripts\activate)
+    - pip install -r requirements.txt -r requirements-dev.txt
   3. Install Docker If not already make sure to follow instructions here docker.com/products/docker-desktop/
   4. Create a .env file in the root of your project based off of the .env.example
   5. Now create and seed your database using the following
-    - pipenv shell
-    - flask db migrate
     - flask db upgrade
-    - flask seed all
+    - flask seed all   (only seeds an empty database; `flask seed all --reset` wipes and re-seeds, local only)
   6. Once that is done confirm you are in the root of your project folder, then run 'flask run'
+     (the app is built by `create_app()` in `app/__init__.py`; in production run `gunicorn "app:create_app()"`)
   7. Now in a new terminal 'cd' into your react-app folder and run 'npm install' so all dependencies will install
   8. Now run 'npm start' to initiate the front end and run the application locally
   9. The application will start at http://localhost:3000/

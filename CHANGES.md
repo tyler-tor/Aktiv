@@ -19,6 +19,7 @@ at the end of this file.
 - **A9 rate limiting skipped:** optional in the plan; it adds Flask-Limiter and needs shared storage across workers, so it is better done with the EC2/Caddy setup (later batch).
 - **A15 done before A18/A47:** the plan suggested doing the migration cleanup after the SQLAlchemy 2.0 upgrade and the Render-schema decision. It was done now on SQLAlchemy 1.4 / Alembic 1.6 using only basic operations (rebuild `follows`, drop `workouts.route_id`, set column defaults) and keeps supporting the production `SCHEMA`, so it does not block either later item. Decision taken: **drop** `workouts.route_id` rather than add it to the model.
 - **A0 (new item, Batch 2):** not in the original plan; added at Tyler's request before the upgrades. Beyond the brief, `flask seed undo` is also refused in production (it deletes everything just like `--reset`).
+- **A16 pins:** the plan leaves all version upgrades to A17, but the old pins cannot be installed or run on Python 3.12, so A16 bumps only what 3.12 strictly needs (greenlet 3.5.6, SQLAlchemy 1.4.54, six 1.17.0) and temporarily pins setuptools 80.10.2 (pkg_resources for Flask 2.0's CLI). `requirements.txt` was kept (no pyproject/uv lock) to stay closest to the existing setup.
 
 ## Open questions for Tyler
 
@@ -378,3 +379,25 @@ at the end of this file.
   - If a deploy script or Render "build command" somewhere still runs `flask seed undo`, remove it (it now fails in production anyway).
   - With plain `DELETE`, Postgres ids keep counting up after a local `--reset` (e.g. demo becomes id 6). Nothing in the app or seeds depends on specific ids any more; the frontend only uses ids it gets from the API.
   - The production check reads `APP_ENV` (or the old `FLASK_ENV` fallback). Make sure production really sets `APP_ENV=production`.
+
+## A16 — App factory + single dependency file + Python 3.12
+- **Problem:** `app/__init__.py` built the Flask app at import time (`app = Flask(...)` at module level, plus `LoginManager(app)`, `Migrate(app, db)`, `CSRFProtect(app)` next to it). Importing *anything* from the `app` package created the one and only app with whatever environment variables happened to be set, so tests could not build an app with a test database, and every extension was glued to that single object. Dependencies were listed twice and disagreed: `Pipfile` said Python 3.9 and had unpinned `boto3`/`psycopg2`, `Pipfile.lock` was stale (see Batch 1 deviations), and `requirements.txt` had the real pins. The pinned versions also could not be installed on a current Python: `greenlet 1.1.0` does not compile on 3.12, `six 1.15.0` breaks `python-dateutil` (and therefore Alembic) on 3.12, and Python 3.12 venvs no longer ship `setuptools`, which Flask 2.0's CLI needs to find the `flask db` command.
+- **What changed:**
+  - `create_app(config_name=None)` in `app/__init__.py` builds and returns a new app. `config_name` is `development` / `testing` / `production` and defaults to `APP_ENV`, using the A11 config classes. The startup checks (SECRET_KEY guard, clear `DATABASE_URL` error) run inside it. The routes that lived in `__init__.py` (`/api/docs`, the React catch-all, the CSRF cookie hook, the 404/413/CSRF error handlers) are registered by small `register_*` helpers called from the factory. Behaviour is unchanged.
+  - New `app/extensions.py` creates `login`, `migrate` and `csrf` **without** an app; the factory calls `init_app(app)` on each. `db` stays in `app/models/db.py` (the models import it) and is re-exported from `extensions.py`.
+  - `FLASK_APP=app` still works: Flask finds `create_app()` automatically, so `flask run`, `flask db upgrade` and `flask seed all` are unchanged. **gunicorn now needs `gunicorn "app:create_app()"`** (there is no module-level `app` object any more).
+  - One dependency file: `Pipfile` and `Pipfile.lock` are deleted; `requirements.txt` (runtime) + `requirements-dev.txt` (tools) are the only lists. New `.python-version` (`3.12`) for pyenv/uv.
+  - Python 3.12 is the target. Only the pins Python 3.12 strictly needs were changed: `greenlet 1.1.0 -> 3.5.6`, `SQLAlchemy 1.4.19 -> 1.4.54` (last 1.4 release, first with 3.12 support), `six 1.15.0 -> 1.17.0`, and `setuptools==80.10.2` added (Flask 2.0 loads the `flask db` command through `pkg_resources`, which setuptools 81+ removed; A17 drops this pin). Everything else stays for A17.
+  - `README.md` "How to get started" uses a venv + `pip install -r ...` instead of pipenv, drops `flask db migrate` (only for creating new migrations), and mentions the gunicorn command. `.flaskenv` has a comment about the factory.
+- **Files:** `app/__init__.py`, `app/extensions.py` (new), `requirements.txt`, `Pipfile` (deleted), `Pipfile.lock` (deleted), `.python-version` (new), `.flaskenv`, `README.md`
+- **How to verify:**
+  1. `python3.12 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt -r requirements-dev.txt` (see "Things to watch" for `psycopg2`).
+  2. `flask db upgrade && flask seed all && flask run` -> app works as before; demo login works.
+  3. `python -c "from app import create_app; print(create_app('testing').config['TESTING'])"` -> `True`.
+  4. `gunicorn "app:create_app()"` -> serves `/api/auth/` (401-style `{"errors": ["Unauthorized"]}` when logged out).
+  Verified on Python 3.12.16: fresh DB upgrade + seed; the 87-request API snapshot is identical to the pre-Batch-2 baseline (only the indentation of two `/api/docs` docstrings differs); all Batch 1 test scripts pass; `flask db` schema check finds 0 differences; gunicorn boots the factory; `create_app('production')` with a placeholder SECRET_KEY still refuses to start.
+- **Things to watch:**
+  - **Breaking for deployments:** any start command `gunicorn app:app` must become `gunicorn "app:create_app()"`.
+  - `psycopg2==2.9.5` still builds from source and needs `pg_config` (Postgres client headers). It was skipped in the local test venv (SQLite); A17 switches to the prebuilt `psycopg2-binary`.
+  - The config classes still read environment variables when `app/config.py` is first imported (class attributes). Set env vars *before* importing `app` in tests, or pass values through `app.config` after `create_app('testing')`. A49 (tests) can refine this.
+  - You will see a `pkg_resources is deprecated` warning on every `flask` command until A17.

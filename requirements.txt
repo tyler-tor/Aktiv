@@ -1,3 +1,8 @@
+# The one dependency file for the backend (Python 3.12).
+# Install: python3.12 -m venv .venv && source .venv/bin/activate
+#          pip install -r requirements.txt -r requirements-dev.txt
+# A16 only bumped what Python 3.12 needs (greenlet, SQLAlchemy 1.4.54, six,
+# setuptools); the Flask 3 / SQLAlchemy 2 upgrades are A17 / A18.
 alembic==1.6.5
 boto3==1.26.16
 botocore==1.29.16
@@ -9,7 +14,7 @@ Flask-Login==0.5.0
 Flask-Migrate==3.0.1
 Flask-SQLAlchemy==2.5.1
 Flask-WTF==0.15.1
-greenlet==1.1.0
+greenlet==3.5.6
 idna==3.10
 gunicorn==20.1.0
 itsdangerous==2.0.1
@@ -23,8 +28,11 @@ python-dateutil==2.8.1
 python-dotenv==0.14.0
 python-editor==1.0.4
 s3transfer==0.6.0
-six==1.15.0
-SQLAlchemy==1.4.19
+six==1.17.0
+SQLAlchemy==1.4.54
 urllib3==1.26.13
 Werkzeug==2.0.1
 WTForms==2.3.3
+# Flask 2.0's CLI finds `flask db` through pkg_resources (part of setuptools,
+# removed in setuptools 81). Python 3.12 venvs no longer include setuptools.
+setuptools==80.10.2
