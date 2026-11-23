@@ -1,6 +1,5 @@
 import os
 from flask import Flask, render_template, request, session, redirect
-from flask_cors import CORS
 from flask_migrate import Migrate
 from flask_wtf.csrf import CSRFProtect, CSRFError, generate_csrf
 from flask_login import LoginManager
@@ -57,8 +56,9 @@ csrf = CSRFProtect(app)
 def handle_csrf_error(e):
     return {'errors': ['CSRF token missing or invalid. Refresh the page and try again.']}, 400
 
-# Application Security
-CORS(app)
+# No CORS: the React app is always served from the same origin as the API
+# (Flask serves the build in production; the CRA dev server proxies /api to
+# Flask in development), so browsers never make cross-origin API calls.
 
 
 # Since we are deploying with Docker and Flask,

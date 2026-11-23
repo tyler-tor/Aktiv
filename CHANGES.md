@@ -206,3 +206,15 @@ changed, which files were touched, how to check it yourself, and what to keep an
   - New dependencies: `email-validator==2.2.0`, `dnspython==2.7.0`, `idna==3.10` (versions chosen to still support Python 3.9).
   - Demo account read-only / nightly reset is still an open question (plan question 10).
   - `SESSION_COOKIE_SECURE` is driven by `FLASK_ENV=production` for now; A11 switches it to `APP_ENV`.
+
+## A10 — Remove CORS
+- **Problem:** `CORS(app)` with no options sent `Access-Control-Allow-Origin: *` on every response, i.e. "any website may read Aktiv's API responses". Cookies are not sent with a wildcard, so it was not directly exploitable, but it was unnecessary, broadens what other sites can do, and becomes dangerous if someone later "fixes" a cookie problem by adding `supports_credentials=True`.
+- **What changed:** Deleted `CORS(app)` and the `flask-cors` dependency. The app never needs CORS today: in production Flask serves the React build from the same origin, and in development the CRA dev server proxies `/api/*` to Flask (`"proxy": "http://localhost:5000"` in `react-app/package.json`), so the browser only ever talks to one origin.
+- **Files:** `app/__init__.py`, `requirements.txt`, `Pipfile`
+- **How to verify:**
+  1. `pip uninstall flask-cors` (or reinstall from `requirements.txt` in a fresh venv) and start the app -> it starts.
+  2. `curl -i -H 'Origin: https://evil.example' http://localhost:5000/api/auth/` -> no `Access-Control-Allow-Origin` header.
+  3. `npm start` in `react-app` and use the app at `http://localhost:3000` -> API calls work through the proxy.
+  Verified: smoke tests pass and no CORS header is returned for a foreign `Origin`.
+- **Things to watch / follow-ups:**
+  - The planned AWS setup (A42) puts CloudFront in front of both the frontend and `/api/*` on one domain, so CORS stays unnecessary. If you ever host the frontend on a different domain than the API, re-add Flask-Cors restricted to that exact origin with `supports_credentials=True` (and `SameSite=None; Secure` cookies).
