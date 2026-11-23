@@ -24,11 +24,13 @@ export const authenticate = () => async (dispatch) => {
   if (response.ok) {
     const data = await response.json();
     if (data.errors) {
-      return;
+      return null;
     }
 
     dispatch(setUser(data));
+    return data;
   }
+  return null;
 }
 
 export const login = (email, password) => async (dispatch) => {

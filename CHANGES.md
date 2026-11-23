@@ -290,3 +290,25 @@ changed, which files were touched, how to check it yourself, and what to keep an
   - Other dependencies that look unused but were **not** in the plan's list, so left alone: `react-icons` and `@types/google.maps` (no imports in `src/`). Safe to remove later.
   - `redux-logger` is still used in development (`store/index.js`).
   - `npm install` prints peer-dependency warnings from react-router 5 / CRA 4; these go away with the Batch 2 upgrades.
+
+## A14 — Fix App.js routing and preload bugs
+- **Problem:**
+  - The startup `useEffect` in `App.js` ran `authenticate()` and then checked `if (user)` - but `user` there is the value from the **first render**, which is always `null` (React gives each render its own copy of the variables). So the "preload routes and workouts" code never ran.
+  - Routes were wrapped in `<>...</>` fragments inside `<Switch>`. `<Switch>` only looks at its *direct* children to pick the first match, so with fragments it couldn't do its job, and a catch-all 404 page was impossible (unknown URLs showed an empty page between the navbar and footer).
+  - `ProtectedRoute` redirected logged-out users to `/login`, a page that does not exist.
+- **What changed:**
+  - `authenticate()` (in `store/session.js`) now returns the user (or `null`). `App` awaits it, and if there is a session, preloads routes + workouts **before** rendering the pages (so a page like `/routes/5` opened directly doesn't race with the preload). Logging in later (form, demo button, sign-up) triggers the same preload once per user; logging out resets it.
+  - One flat `<Switch>`: `/` shows the home page when logged in and the login form when logged out (same as before), `/sign-up` redirects home if already logged in, `/login` redirects to `/` (for old links), all app pages use `ProtectedRoute`, and a final catch-all route shows the new **NotFound** page.
+  - `ProtectedRoute` uses the `render` prop and redirects to `/` (the real login page), passing the original location in `state.from` for a future "return to where you were" feature.
+  - New `components/NotFound.js` + `NotFound.css` ("Page not found" + link home).
+  - Stayed on react-router v5 syntax; A22 (Batch 2) converts this to v7 `<Routes>`.
+- **Files:** `react-app/src/App.js`, `react-app/src/components/auth/ProtectedRoute.js`, `react-app/src/components/NotFound.js` (new), `react-app/src/components/NotFound.css` (new), `react-app/src/store/session.js`
+- **How to verify:**
+  1. `npm start`, logged out, open `http://localhost:3000/activity` -> you land on the login page at `/`.
+  2. Open `http://localhost:3000/nope` -> "Page not found" with a link home.
+  3. Log in with Demo, reload the page with DevTools > Network open -> `/api/auth/`, then `/api/routes/` and `/api/workouts/` are requested once at startup.
+  4. All existing pages (`/activity`, `/routes`, `/routes/<id>`, `/workouts/<id>`, `/newRoute`, `/newWorkout`, `/users/<id>`) still open.
+  Verified: `npm run build` compiles (the old App.js hook-dependency warning is gone); Flask serves `index.html` for `/`, `/routes/5`, `/sign-up` and unknown paths; and a throw-away Jest test (React Testing Library, fetch mocked) confirmed the three behaviours above - it **fails on the old App.js** and passes on the new one. The test file was not added to the repo (frontend tests are A51); a copy is kept outside the project. Clicking through the UI in a real browser was **not** done here.
+- **Things to watch / follow-ups:**
+  - Pages still fetch their own data too (e.g. `RouteDisplay` calls `getAllRoutes()` again); A21/A27 reduce that duplicate fetching.
+  - `GET_ROUTES` in `store/routes.js` resets `currentRoute` to `null`; if you ever start a background refetch of all routes while a route page is open, it can blank that page - worth changing when the store is refactored (A21).

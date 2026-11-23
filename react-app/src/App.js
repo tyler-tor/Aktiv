@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Route, Switch } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { BrowserRouter, Route, Switch, Redirect } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import ActivityFeed from './components/ActivityFeed';
 import LoginForm from './components/auth/LoginForm';
@@ -12,6 +12,7 @@ import Footer from './components/Footer';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import UsersList from './components/UsersList';
 import User from './components/User';
+import NotFound from './components/NotFound';
 import { authenticate } from './store/session';
 import { getAllRoutes } from './store/routes';
 import { getAllWorkouts } from './store/workouts';
@@ -21,68 +22,90 @@ import NewWorkout from './components/NewWorkout/NewWorkout';
 
 function App() {
   const [loaded, setLoaded] = useState(false);
-  const user = useSelector((state) => state.session.user)
+  const user = useSelector((state) => state.session.user);
+  const userId = user ? user.id : null;
   const dispatch = useDispatch();
+  // Which user we already preloaded routes/workouts for (avoids refetching
+  // every time the session object is refreshed, e.g. after adding a friend).
+  const preloadedFor = useRef(null);
 
+  const preload = useCallback(async (id) => {
+    if (preloadedFor.current === id) return;
+    preloadedFor.current = id;
+    await Promise.all([dispatch(getAllWorkouts()), dispatch(getAllRoutes())]);
+  }, [dispatch]);
+
+  // First load: restore the session, preload data if logged in, then render.
+  // (The old code checked `user` from the first render here, which is always
+  // null, so the preload never ran.)
   useEffect(() => {
     (async () => {
-      await dispatch(authenticate());
-      if (user) {
-        await dispatch(getAllWorkouts())
-        await dispatch(getAllRoutes());
+      const sessionUser = await dispatch(authenticate());
+      if (sessionUser) {
+        await preload(sessionUser.id);
       }
       setLoaded(true);
     })();
-  }, [dispatch]);
+  }, [dispatch, preload]);
+
+  // Later logins (login form, sign-up, demo button) preload too; logout resets.
+  useEffect(() => {
+    if (!loaded) return;
+    if (userId) {
+      preload(userId);
+    } else {
+      preloadedFor.current = null;
+    }
+  }, [loaded, userId, preload]);
 
   if (!loaded) {
     return null;
   }
 
-  return loaded && (
+  // One flat <Switch>: it renders the FIRST matching route only. (Wrapping
+  // routes in <>...</> fragments inside <Switch> broke that matching and made a
+  // 404 page impossible.) Logged-out users who open a protected page are sent
+  // to the login page by <ProtectedRoute>.
+  return (
     <BrowserRouter>
       <NavBar />
       <Switch>
-        {user ? (
-          <>
-            <ProtectedRoute path='/users' exact={true} >
-              <UsersList />
-            </ProtectedRoute>
-            <ProtectedRoute path='/users/:userId' exact={true} >
-              <User />
-            </ProtectedRoute>
-            <ProtectedRoute path='/routes' exact={true} >
-              <Routes />
-            </ProtectedRoute>
-            <ProtectedRoute path='/activity' exact={true} >
-              <ActivityFeed />
-            </ProtectedRoute>
-            <ProtectedRoute path='/routes/:routeId' exact={true} >
-              <RouteDisplay />
-            </ProtectedRoute>
-            <ProtectedRoute path='/workouts/:workoutId' exact={true} >
-              <WorkoutDisplay />
-            </ProtectedRoute>
-            <ProtectedRoute path='/newRoute' exact={true} >
-              <NewRoute />
-            </ProtectedRoute>
-            <ProtectedRoute path='/newWorkout' exact={true} >
-              <NewWorkout />
-            </ProtectedRoute>
-            <Route path='/' exact={true} >
-              <HomePage />
-            </Route>
-          </>
-        ) : (
-          <>
-            <Route path='/' exact={true}>
-              <LoginForm />
-            </Route>
-            <Route path='/sign-up' exact={true}>
-              <SignUpForm />
-            </Route>
-          </>
-        )}
+        <Route path='/' exact={true}>
+          {user ? <HomePage /> : <LoginForm />}
+        </Route>
+        <Route path='/sign-up' exact={true}>
+          {user ? <Redirect to='/' /> : <SignUpForm />}
+        </Route>
+        <Route path='/login' exact={true}>
+          <Redirect to='/' />
+        </Route>
+        <ProtectedRoute path='/users' exact={true}>
+          <UsersList />
+        </ProtectedRoute>
+        <ProtectedRoute path='/users/:userId' exact={true}>
+          <User />
+        </ProtectedRoute>
+        <ProtectedRoute path='/routes' exact={true}>
+          <Routes />
+        </ProtectedRoute>
+        <ProtectedRoute path='/activity' exact={true}>
+          <ActivityFeed />
+        </ProtectedRoute>
+        <ProtectedRoute path='/routes/:routeId' exact={true}>
+          <RouteDisplay />
+        </ProtectedRoute>
+        <ProtectedRoute path='/workouts/:workoutId' exact={true}>
+          <WorkoutDisplay />
+        </ProtectedRoute>
+        <ProtectedRoute path='/newRoute' exact={true}>
+          <NewRoute />
+        </ProtectedRoute>
+        <ProtectedRoute path='/newWorkout' exact={true}>
+          <NewWorkout />
+        </ProtectedRoute>
+        <Route>
+          <NotFound />
+        </Route>
       </Switch>
       <Footer />
     </BrowserRouter>

@@ -2,13 +2,19 @@ import React from 'react';
 import { useSelector } from 'react-redux';
 import { Route, Redirect } from 'react-router-dom';
 
-const ProtectedRoute = props => {
-  const user = useSelector(state => state.session.user)
+// Renders its children only for a logged-in user. Logged-out users are sent
+// to the login page, which lives at "/" (there is no "/login" page; the old
+// redirect target "/login" did not exist).
+const ProtectedRoute = ({ children, ...rest }) => {
+  const user = useSelector(state => state.session.user);
   return (
-    <Route {...props}>
-      {(user)? props.children  : <Redirect to='/login' />}
-    </Route>
-  )
+    <Route
+      {...rest}
+      render={({ location }) =>
+        user ? children : <Redirect to={{ pathname: '/', state: { from: location } }} />
+      }
+    />
+  );
 };
 
 
