@@ -1,11 +1,11 @@
-import { GoogleMap, useLoadScript, Marker, InfoWindow } from "@react-google-maps/api";
+import { GoogleMap, Marker, InfoWindow } from "@react-google-maps/api";
+import { useGoogleMaps } from "../../context/GoogleMaps";
 import React, { useMemo, useState } from "react";
 import { NavLink } from "react-router";
 import { useEffect } from "react";
 import { useSelector, useDispatch } from 'react-redux'
 import { getAllRoutes } from "../../store/routes";
 import './MapComponent.css'
-import { GOOGLE_MAPS_API_KEY } from '../../config';
 
 const containerStyle = {
     width: '100vw',
@@ -17,11 +17,8 @@ const MapComponent = ({ lat, lng }) => {
     const dispatch = useDispatch()
     const routes = Object.values(useSelector(state => state.routes.routes ? state.routes.routes : {}));
     const [selected, setSelected] = useState(null)
-    //loads the map if the api key for google maps api exist
-    const { isLoaded } = useLoadScript({
-        id: 'google-map-script',
-        googleMapsApiKey: GOOGLE_MAPS_API_KEY
-    });
+    // true once the shared Google Maps script (context/GoogleMaps.jsx) is ready
+    const { isLoaded } = useGoogleMaps();
     //sets the center of the map based on the lat,lng props that are passed
     const center = useMemo(() => {
         if (lat && lng) {

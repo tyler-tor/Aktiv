@@ -3,9 +3,9 @@ import { useSelector, useDispatch } from 'react-redux'
 import { useNavigate } from 'react-router';
 import { addRoute } from '../../store/routes'
 import ImageUploadComponent from '../ImageUploadComponenet';
-import { GoogleMap, useLoadScript, Marker, DistanceMatrixService } from '@react-google-maps/api';
+import { GoogleMap, Marker, DistanceMatrixService } from '@react-google-maps/api';
+import { useGoogleMaps } from '../../context/GoogleMaps';
 import './NewRoute.css'
-import { GOOGLE_MAPS_API_KEY } from '../../config';
 
 const center = {
   lat: 37.090240,
@@ -27,10 +27,7 @@ function NewRoute() {
   const [travelingMode, setTravelingMode] = useState('')
   const [distance, setDistance] = useState(null)
 
-  const { isLoaded } = useLoadScript({
-    id: 'google-map-script',
-    googleMapsApiKey: GOOGLE_MAPS_API_KEY
-  })
+  const { isLoaded } = useGoogleMaps();
 
   const handleSubmit = async (e) => {
     e.preventDefault();

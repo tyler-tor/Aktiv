@@ -519,3 +519,21 @@ at the end of this file.
   - v7 `NavLink` marks `to='/'` as active only on `/` itself (v5 marked the logo link active everywhere when `exact` was missing). There is no `.active` CSS in the app, so nothing looks different.
   - The pre-existing `/routes` and `/users` page crashes (A19) are unchanged.
   - The app uses v7 in "declarative mode" (`<BrowserRouter>` + `<Routes>`), the smallest change. v7's data/framework modes (loaders, actions) are optional and would be a separate refactor.
+
+## A23 — Google Maps library update
+- **Problem:** Four components (`Map/MapComponent`, `NewMap/NewRoute`, `RouteDisplay/RouteDisplay`, `MapAdjustment/EditMapForm`) each called `useLoadScript(...)` themselves. Every one of them created its own loader for the same script: the Google Maps loader only allows **one** configuration per page (a second, different call throws "Loader must not be called again with different options"), so adding e.g. a `libraries` option to just one component would have broken the others, and each page start had to wait for its own loader state. `@react-google-maps/api` was on 2.17.0, which does not support React 19.
+- **What changed:**
+  - `@react-google-maps/api` is on **2.20.8** (latest; the version bump itself already happened in A20 because React 19 required it - see Deviations).
+  - New `src/context/GoogleMaps.jsx`: a `GoogleMapsProvider` calls **`useJsApiLoader` once** for the whole app with a constant `LIBRARIES = ['maps']` array defined outside any component (a new array per render makes the library reload the script and log a "Performance warning"), and a `useGoogleMaps()` hook returns `{ isLoaded, loadError }`. A load error is logged to the console in development.
+  - `main.jsx` wraps `<App />` in `<GoogleMapsProvider>`. The 4 map components replace their `useLoadScript({...})` with `const { isLoaded } = useGoogleMaps();` and no longer import the key. Nothing else in them changed.
+  - Kept `@react-google-maps/api` instead of moving to `@vis.gl/react-google-maps` (the plan allowed either): the app uses `DirectionsService`, `DirectionsRenderer` and `DistanceMatrixService` components, which `@vis.gl` does not provide, so a move would mean rewriting all map code.
+- **Files:** `react-app/src/context/GoogleMaps.jsx` (new), `react-app/src/main.jsx`, `react-app/src/components/Map/MapComponent.jsx`, `react-app/src/components/NewMap/NewRoute.jsx`, `react-app/src/components/RouteDisplay/RouteDisplay.jsx`, `react-app/src/components/MapAdjustment/EditMapForm.jsx`
+- **How to verify:**
+  1. Put your key in `react-app/.env.local` as `VITE_GOOGLE_MAPS_API_KEY=...`, `npm run dev`, log in.
+  2. Home (all routes on one map), a route page (directions), "+ Route" (place start/end markers, distance appears), Edit on your own route: all maps load. DevTools > Network: `maps.googleapis.com/maps/api/js` is requested **once** per page load, not once per map page.
+  3. No "LoadScript has been reloaded unintentionally" or "Loader must not be called again" warnings in the console.
+  Verified: build OK; the jsdom smoke test gives identical results to A22 (21 scenarios); a second throw-away test that fakes `@react-google-maps/api` as "loaded" rendered the real map components on home (map + 20 route markers), "+ Route" (map + 2 markers) and a route page (map + directions) while navigating between them, and showed the loader was called once with one stable `libraries` array and no component-level `useLoadScript` left. Real map rendering with a real key was **not** checked (no key available here).
+- **Things to watch:**
+  - The Maps script now loads on every page, including the login page (before, only when a map page opened). Loading the script is free; Google bills per map shown, which did not change.
+  - Google deprecated `google.maps.Marker` (used via `<Marker>`) in favour of `AdvancedMarkerElement` (needs a Map ID). It still works and is not scheduled for removal yet; switching is a possible follow-up.
+  - `ActivityFeed` still calls the Directions web service directly from the browser (see A12); that is A28, not part of this item.

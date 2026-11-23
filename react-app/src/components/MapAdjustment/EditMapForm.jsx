@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { updateRoute } from '../../store/routes';
-import { GoogleMap, useLoadScript, Marker, DistanceMatrixService } from '@react-google-maps/api';
+import { GoogleMap, Marker, DistanceMatrixService } from '@react-google-maps/api';
+import { useGoogleMaps } from '../../context/GoogleMaps';
 import './MapAdjustment.css'
-import { GOOGLE_MAPS_API_KEY } from '../../config';
 
 
 function EditMapForm({ route, onClose, setResponse, setLoaded }) {
@@ -17,10 +17,7 @@ function EditMapForm({ route, onClose, setResponse, setLoaded }) {
     const [travelingMode, setTravelingMode] = useState(route?.travelMode)
     const [distance, setDistance] = useState(route?.distance)
 
-    const { isLoaded } = useLoadScript({
-        id: 'google-map-script',
-        googleMapsApiKey: GOOGLE_MAPS_API_KEY
-    })
+    const { isLoaded } = useGoogleMaps();
 
     const center = {
         lat: (route?.startingPoint.lat + route?.endingPoint.lat) / 2,

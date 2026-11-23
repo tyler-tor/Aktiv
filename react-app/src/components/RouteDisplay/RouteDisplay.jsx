@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { GoogleMap, useLoadScript, DirectionsService, DirectionsRenderer } from '@react-google-maps/api';
+import { GoogleMap, DirectionsService, DirectionsRenderer } from '@react-google-maps/api';
+import { useGoogleMaps } from '../../context/GoogleMaps';
 import { useParams } from 'react-router';
 import { useSelector, useDispatch } from 'react-redux';
 import { getCurrentRoute, getAllRoutes } from '../../store/routes';
@@ -7,7 +8,6 @@ import { NavLink } from 'react-router';
 import Comments from '../Comments/Comments';
 import MapAdjustment from '../MapAdjustment/MapAdjustment';
 import './RouteDisplay.css';
-import { GOOGLE_MAPS_API_KEY } from '../../config';
 
 const DefaultCenter = {
     lat: 47.649133,
@@ -24,10 +24,7 @@ function RouteDisplay() {
 
     const dispatch = useDispatch()
 
-    const { isLoaded } = useLoadScript({
-        id: 'google-map-script',
-        googleMapsApiKey: GOOGLE_MAPS_API_KEY
-    })
+    const { isLoaded } = useGoogleMaps();
 
     const directionsCallback = (response) => {
         if (response !== null) {
