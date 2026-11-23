@@ -14,7 +14,7 @@ from .api.me_routes import me_routes
 from .api.img_routes import img_routes
 from .api.map_routes import map_routes
 from .seeds import seed_commands
-from .config import Config
+from .config import Config, check_secret_key
 from app.models.db import db, environment, SCHEMA
 
 app = Flask(__name__, static_folder='../react-app/build', static_url_path='/')
@@ -33,6 +33,7 @@ def load_user(id):
 app.cli.add_command(seed_commands)
 
 app.config.from_object(Config)
+check_secret_key(app.config.get('SECRET_KEY'), os.environ.get('FLASK_ENV'))
 app.register_blueprint(user_routes, url_prefix='/api/users')
 app.register_blueprint(auth_routes, url_prefix='/api/auth')
 app.register_blueprint(route_routes, url_prefix='/api/routes')

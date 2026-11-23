@@ -5,3 +5,6 @@ __pycache__/
 .DS_Store
 .vscode/
 .env.local
+# Local env files hold secrets; only the example is committed
+.env.*
+!.env.example
