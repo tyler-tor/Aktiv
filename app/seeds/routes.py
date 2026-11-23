@@ -1,10 +1,10 @@
-from app.models import db, Route, environment, SCHEMA
+from app.models import db, Route
 
 
-# Adds a demo user, you can add other users here if you want
-def seed_routes():
+def seed_routes(users):
+    """Creates 20 routes owned by the seeded users; returns them in order."""
     route1 = Route(
-        user_id=3,
+        user_id=users[2].id,
         title='Woah look at these views!',
         description='Decided to take a long bike ride and enjoyed the view',
         image_url='https://capstone-strava-clone-aktiv.s3.us-west-2.amazonaws.com/strava+pictures/routes/1.jpg',
@@ -15,7 +15,7 @@ def seed_routes():
         traveling_mode='BICYCLING',
         distance='16.2 km')
     route2 = Route(
-        user_id=2,
+        user_id=users[1].id,
         title='Fun Times',
         description='Glad I was able to get out today',
         image_url='https://capstone-strava-clone-aktiv.s3.us-west-2.amazonaws.com/strava+pictures/routes/2.jpg',
@@ -26,7 +26,7 @@ def seed_routes():
         traveling_mode='BICYCLING',
         distance='10 km')
     route3 = Route(
-        user_id=1,
+        user_id=users[0].id,
         title='Lets get it',
         description='How could you not love this?',
         image_url='https://capstone-strava-clone-aktiv.s3.us-west-2.amazonaws.com/strava+pictures/routes/3.jpg',
@@ -37,7 +37,7 @@ def seed_routes():
         traveling_mode='WALKING',
         distance='15.9 km')
     route4 = Route(
-        user_id=4,
+        user_id=users[3].id,
         title='Cmon now',
         description='Got after it today, success',
         image_url='https://capstone-strava-clone-aktiv.s3.us-west-2.amazonaws.com/strava+pictures/routes/4.jpg',
@@ -48,7 +48,7 @@ def seed_routes():
         traveling_mode='WALKING',
         distance='10.4 km')
     route5 = Route(
-        user_id=5,
+        user_id=users[4].id,
         title='Rough one',
         description='Got it but was rough today.',
         image_url='https://capstone-strava-clone-aktiv.s3.us-west-2.amazonaws.com/strava+pictures/routes/5.jpg',
@@ -59,7 +59,7 @@ def seed_routes():
         traveling_mode='WALKING',
         distance='23.4 km')
     route6 = Route(
-        user_id=1,
+        user_id=users[0].id,
         title='Very hilly',
         description='Lots of elevation today',
         image_url='https://capstone-strava-clone-aktiv.s3.us-west-2.amazonaws.com/strava+pictures/routes/6.jpg',
@@ -70,7 +70,7 @@ def seed_routes():
         traveling_mode='WALKING',
         distance='16 km')
     route7 = Route(
-        user_id=2,
+        user_id=users[1].id,
         title='Good Weather',
         description='Such nice weather, glad I was able to enjoy.',
         image_url='https://capstone-strava-clone-aktiv.s3.us-west-2.amazonaws.com/strava+pictures/routes/7.jpg',
@@ -81,7 +81,7 @@ def seed_routes():
         traveling_mode='WALKING',
         distance='16.6 km')
     route8 = Route(
-        user_id=3,
+        user_id=users[2].id,
         title='Cooooooold',
         description='Super cold out was difficult today',
         image_url='https://capstone-strava-clone-aktiv.s3.us-west-2.amazonaws.com/strava+pictures/routes/8.jpg',
@@ -92,7 +92,7 @@ def seed_routes():
         traveling_mode='WALKING',
         distance='20.9 km')
     route9 = Route(
-        user_id=4,
+        user_id=users[3].id,
         title='Nice Views',
         description='This hike produced great views.',
         image_url='https://capstone-strava-clone-aktiv.s3.us-west-2.amazonaws.com/strava+pictures/routes/9.jpg',
@@ -103,7 +103,7 @@ def seed_routes():
         traveling_mode='WALKING',
         distance='16.6 km')
     route10 = Route(
-        user_id=5,
+        user_id=users[4].id,
         title='Wildlife everywhere',
         description='Glad I brought the bear spray.',
         image_url='https://capstone-strava-clone-aktiv.s3.us-west-2.amazonaws.com/strava+pictures/routes/10.jpg',
@@ -114,7 +114,7 @@ def seed_routes():
         traveling_mode='WALKING',
         distance='28.8')
     route11 = Route(
-        user_id=1,
+        user_id=users[0].id,
         title='Lake hike',
         description='Able to enjoy a nice dip in the lake.',
         image_url='https://capstone-strava-clone-aktiv.s3.us-west-2.amazonaws.com/strava+pictures/routes/11.jpg',
@@ -125,7 +125,7 @@ def seed_routes():
         traveling_mode='WALKING',
         distance='26.6 km')
     route12 = Route(
-        user_id=2,
+        user_id=users[1].id,
         title='Group hike',
         description='Met up for a group hike today.',
         image_url='https://capstone-strava-clone-aktiv.s3.us-west-2.amazonaws.com/strava+pictures/routes/12.jpg',
@@ -136,7 +136,7 @@ def seed_routes():
         traveling_mode='WALKING',
         distance='12.4 km')
     route13 = Route(
-        user_id=3,
+        user_id=users[2].id,
         title='Breaking out the MTB',
         description='Tough but was nice to get out.',
         image_url='https://capstone-strava-clone-aktiv.s3.us-west-2.amazonaws.com/strava+pictures/routes/13.jpg',
@@ -147,7 +147,7 @@ def seed_routes():
         traveling_mode='BIKING',
         distance='23.7 km')
     route14 = Route(
-        user_id=4,
+        user_id=users[3].id,
         title='Long road bike',
         description='Able to enjoy the fresh air on the road bike.',
         image_url='https://capstone-strava-clone-aktiv.s3.us-west-2.amazonaws.com/strava+pictures/routes/14.jpg',
@@ -158,7 +158,7 @@ def seed_routes():
         traveling_mode='BIKING',
         distance='63 km')
     route15 = Route(
-        user_id=5,
+        user_id=users[4].id,
         title='Jump day',
         description='Took the MTB on the track today.',
         image_url='https://capstone-strava-clone-aktiv.s3.us-west-2.amazonaws.com/strava+pictures/routes/15.jpg',
@@ -169,7 +169,7 @@ def seed_routes():
         traveling_mode='BIKING',
         distance='26.6 km')
     route16 = Route(
-        user_id=1,
+        user_id=users[0].id,
         title='Nice downhill action',
         description='Trails were super wet today great to get out.',
         image_url='https://capstone-strava-clone-aktiv.s3.us-west-2.amazonaws.com/strava+pictures/routes/16.jpg',
@@ -180,7 +180,7 @@ def seed_routes():
         traveling_mode='BIKING',
         distance='27.1')
     route17 = Route(
-        user_id=2,
+        user_id=users[1].id,
         title='Family ride',
         description='Nice neighborhood ride today.',
         image_url='https://capstone-strava-clone-aktiv.s3.us-west-2.amazonaws.com/strava+pictures/routes/17.jpg',
@@ -191,7 +191,7 @@ def seed_routes():
         traveling_mode='BIKING',
         distance='42.1 km')
     route18 = Route(
-        user_id=3,
+        user_id=users[2].id,
         title='Beach ride',
         description='Wanted to see what all the fuss was about',
         image_url='https://capstone-strava-clone-aktiv.s3.us-west-2.amazonaws.com/strava+pictures/routes/18.jpg',
@@ -202,7 +202,7 @@ def seed_routes():
         traveling_mode='BIKING',
         distance='42.5 km')
     route19 = Route(
-        user_id=4,
+        user_id=users[3].id,
         title='Trail riding',
         description='Some steep long trails today, much enjoyment today.',
         image_url='https://capstone-strava-clone-aktiv.s3.us-west-2.amazonaws.com/strava+pictures/routes/19.jpg',
@@ -213,7 +213,7 @@ def seed_routes():
         traveling_mode='BIKING',
         distance='30.1 km')
     route20 = Route(
-        user_id=5,
+        user_id=users[4].id,
         title='Lunch ride',
         description='Glad to get away from the desk for a bit.',
         image_url='https://capstone-strava-clone-aktiv.s3.us-west-2.amazonaws.com/strava+pictures/routes/20.jpg',
@@ -224,45 +224,9 @@ def seed_routes():
         traveling_mode='BIKING',
         distance='13.1 km')
 
-    db.session.add(route1)
-    db.session.add(route2)
-    db.session.add(route3)
-    db.session.add_all([
-        route1,
-        route2,
-        route3,
-        route4,
-        route5,
-        route6,
-        route7,
-        route8,
-        route9,
-        route10,
-        route11,
-        route12,
-        route13,
-        route14,
-        route15,
-        route16,
-        route17,
-        route18,
-        route19,
-        route20
-    ])
+    routes = [route1, route2, route3, route4, route5, route6, route7, route8,
+              route9, route10, route11, route12, route13, route14, route15,
+              route16, route17, route18, route19, route20]
+    db.session.add_all(routes)
     db.session.commit()
-
-
-# Uses a raw SQL query to TRUNCATE or DELETE the users table. SQLAlchemy doesn't
-# have a built in function to do this. With postgres in production TRUNCATE
-# removes all the data from the table, and RESET IDENTITY resets the auto
-# incrementing primary key, CASCADE deletes any dependent entities.  With
-# sqlite3 in development you need to instead use DELETE to remove all data and
-# it will reset the primary keys for you as well.
-def undo_routes():
-    if environment == "production":
-        db.session.execute(
-            f"TRUNCATE table {SCHEMA}.routes RESTART IDENTITY CASCADE;")
-    else:
-        db.session.execute("DELETE FROM routes")
-
-    db.session.commit()
+    return routes

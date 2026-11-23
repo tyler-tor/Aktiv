@@ -1,53 +1,72 @@
+import click
 from flask.cli import AppGroup
-from .users import seed_users, undo_users
-from .routes import seed_routes, undo_routes
-from .comments import seed_comments, undo_comments
-from .workouts import seed_workouts, undo_workouts
-from app.models.db import db, environment, SCHEMA
+from sqlalchemy import delete, select
 
-from app.models.db import db, environment, SCHEMA
+from app.models import db, User, Route, Workout, Comment
+from app.models.user import follows
+from app.models.db import environment
+from .users import seed_users
+from .routes import seed_routes
+from .workouts import seed_workouts
+from .comments import seed_comments
 
 # Creates a seed group to hold our commands
 # So we can type `flask seed --help`
 seed_commands = AppGroup('seed')
 
 
-# Creates the `flask seed all` command
-@seed_commands.command('all')
-def seed():
+def database_has_data():
+    """True if there is at least one user (the seed's first table)."""
+    return db.session.execute(select(User.id).limit(1)).first() is not None
+
+
+def delete_all_data():
+    """
+    Deletes every row from the app's tables, children before parents
+    (comments -> workouts -> routes -> follows -> users) so no foreign key
+    is ever violated. Uses plain DELETE (works on SQLite and Postgres); the
+    seeds never depend on ids starting at 1, so ids are not reset.
+    """
+    for table in (Comment.__table__, Workout.__table__, Route.__table__, follows, User.__table__):
+        db.session.execute(delete(table))
+    db.session.commit()
+
+
+def refuse_in_production(action):
     if environment == 'production':
-        # Before seeding in production, you want to run the seed undo
-        # command, which will  truncate all tables prefixed with
-        # the schema name (see comment in users.py undo_users function).
-        # Make sure to add all your other model's undo functions below
-        # Before seeding, truncate all tables prefixed with schema name
-        # db.session.execute(f"TRUNCATE table {SCHEMA}.users RESTART IDENTITY CASCADE;")
-        # Add a truncate command here for every table that will be seeded.
-
-        # Before seeding, truncate all tables prefixed with schema name
-        db.session.execute(f"TRUNCATE table {SCHEMA}.users RESTART IDENTITY CASCADE;")
-        db.session.execute(f"TRUNCATE table {SCHEMA}.routes RESTART IDENTITY CASCADE;")
-        db.session.execute(f"TRUNCATE table {SCHEMA}.workouts RESTART IDENTITY CASCADE;")
-        db.session.execute(f"TRUNCATE table {SCHEMA}.comments RESTART IDENTITY CASCADE;")
-        db.session.commit()
+        raise click.ClickException(
+            f'{action} deletes all data and is disabled in production '
+            '(APP_ENV=production). Run it only against a local database.')
 
 
-        undo_users()
-        undo_routes()
-        undo_workouts()
-        undo_comments()
-    seed_users()
-    seed_routes()
-    seed_workouts()
-    seed_comments()
-    # Add other seed functions here
+def seed_demo_data():
+    users = seed_users()
+    routes = seed_routes(users)
+    workouts = seed_workouts(users)
+    seed_comments(users, routes, workouts)
 
 
-# Creates the `flask seed undo` command
+# `flask seed all` - safe to run on every deploy: it only seeds an empty
+# database and never deletes anything. `flask seed all --reset` wipes the
+# tables first (local development only).
+@seed_commands.command('all')
+@click.option('--reset', is_flag=True,
+              help='Delete all existing data first, then seed (refused in production).')
+def seed(reset):
+    if reset:
+        refuse_in_production('flask seed all --reset')
+        delete_all_data()
+        click.echo('Deleted existing data.')
+    elif database_has_data():
+        click.echo('Database already has data. Skipping seed.')
+        return
+    seed_demo_data()
+    click.echo('Seeded demo data.')
+
+
+# `flask seed undo` - delete all data (local development only).
 @seed_commands.command('undo')
 def undo():
-    undo_users()
-    undo_routes()
-    undo_comments()
-    undo_workouts()
-    # Add other undo functions here
+    refuse_in_production('flask seed undo')
+    delete_all_data()
+    click.echo('Deleted all data.')

@@ -5,7 +5,12 @@ same numbering as `MODERNIZATION_PLAN.md`. Each section says what was wrong, wha
 changed, which files were touched, how to check it yourself, and what to keep an eye on.
 
 **Batch 1 (security & bug fixes): A1 - A15.** These keep the current stack
-(Flask 2.0 / SQLAlchemy 1.4 / Create React App). Stack upgrades are Batch 2.
+(Flask 2.0 / SQLAlchemy 1.4 / Create React App).
+
+**Batch 2 (modern stack): A0, A16 - A23.** A0 (safe seeding) was added before the
+upgrades; then the app factory / Python 3.12, Flask 3, SQLAlchemy 2.0, Vite, React 19,
+Redux Toolkit, React Router v7 and the Google Maps library update. See the Batch 2 part
+at the end of this file.
 
 ## Deviations from plan
 
@@ -13,6 +18,7 @@ changed, which files were touched, how to check it yourself, and what to keep an
 - **Pipfile.lock not regenerated:** new Python packages (Pillow in A4, email-validator in A9) were added to both `requirements.txt` and `Pipfile`, but `Pipfile.lock` could not be re-locked here (no pipenv/Python 3.9). `pipenv install` will re-lock automatically, or run `pipenv lock`. A16 (later) removes the Pipfile entirely.
 - **A9 rate limiting skipped:** optional in the plan; it adds Flask-Limiter and needs shared storage across workers, so it is better done with the EC2/Caddy setup (later batch).
 - **A15 done before A18/A47:** the plan suggested doing the migration cleanup after the SQLAlchemy 2.0 upgrade and the Render-schema decision. It was done now on SQLAlchemy 1.4 / Alembic 1.6 using only basic operations (rebuild `follows`, drop `workouts.route_id`, set column defaults) and keeps supporting the production `SCHEMA`, so it does not block either later item. Decision taken: **drop** `workouts.route_id` rather than add it to the model.
+- **A0 (new item, Batch 2):** not in the original plan; added at Tyler's request before the upgrades. Beyond the brief, `flask seed undo` is also refused in production (it deletes everything just like `--reset`).
 
 ## Open questions for Tyler
 
@@ -343,3 +349,32 @@ changed, which files were touched, how to check it yourself, and what to keep an
   - On SQLite, `ON DELETE CASCADE` only takes effect if `PRAGMA foreign_keys=ON` (SQLAlchemy leaves it off); the ORM already removes friendship rows when a user is deleted, so behaviour is the same. On Postgres the cascade is enforced by the database.
   - Server defaults use database time (UTC on most servers) while Python defaults use the app server's local time; A18 moves everything to timezone-aware UTC.
   - Indexes on foreign keys come next in A26 (later batch).
+
+---
+
+# Batch 2 (modern stack): A0, A16 - A23
+
+## A0 — Safe seeding
+- **Problem:** `flask seed all` started (in production) by running `TRUNCATE ... RESTART IDENTITY CASCADE` on `users`, `routes`, `workouts` and `comments`, then re-seeding the 5 demo users. The old Render deploy ran `flask seed all` on **every deploy**, so each deploy wiped every real sign-up, route, workout and comment. The seed files also hard-coded `user_id=3`, `route_id=20`, etc., which only works if the ids happen to start at 1 (true after `RESTART IDENTITY`, not after a plain `DELETE` on Postgres). The raw `db.session.execute("TRUNCATE ...")` strings would also break on SQLAlchemy 2.0.
+- **What changed:**
+  - `flask seed all` now only seeds an **empty** database: if there is at least one user it prints `Database already has data. Skipping seed.` and exits without touching anything. That makes it safe to run on every deploy.
+  - New `flask seed all --reset`: deletes all data first, then seeds. The delete runs **children before parents** (`comments`, `workouts`, `routes`, `follows`, `users`) with SQLAlchemy `delete()` (works on SQLite and Postgres, no raw SQL). In production (`APP_ENV=production`) it refuses with a `click.ClickException` (exit code 1).
+  - `flask seed undo` uses the same delete and is also refused in production (it would wipe real data just the same).
+  - The whole TRUNCATE block and every per-file `undo_*()` function (all raw SQL) are gone.
+  - No more hard-coded ids: `seed_users()` returns the users as a list, `seed_routes(users)` / `seed_workouts(users)` return theirs, and `seed_comments(users, routes, workouts)` uses `users[2].id`, `routes[19].id`, ... The users are inserted in an explicit order (demo, marnie, tammie, bobbie, jimmy) and flushed before the friendships are set, so a fresh database gets **exactly the same ids and ownership as before** (demo is still id 1, route 1 still belongs to tammie, etc.).
+- **The rule from now on (deploys and local work):**
+  - **Deploy** runs `flask db upgrade && flask seed all`. This is safe every time: migrations only move the schema forward, and the seed only fills an empty database.
+  - **Reset only locally:** `flask seed all --reset` (or `flask seed undo`). Both refuse to run with `APP_ENV=production`.
+  - **Never run `docker compose down -v`** against a stack that holds data you care about (`-v` deletes the Postgres volume = the database). Plain `docker compose down` is fine. (Relevant once Docker Compose arrives in A38.)
+  - **Back up before every production migration:** `pg_dump` first (A46 automates backups later).
+- **Files:** `app/seeds/__init__.py`, `app/seeds/users.py`, `app/seeds/routes.py`, `app/seeds/workouts.py`, `app/seeds/comments.py`
+- **How to verify:**
+  1. `flask seed all` on a database that already has data -> `Database already has data. Skipping seed.`
+  2. `flask seed all --reset` -> `Deleted existing data.` then `Seeded demo data.`; demo login (`demo@aa.io` / `password`) works.
+  3. `APP_ENV=production flask seed all --reset` -> `Error: flask seed all --reset deletes all data and is disabled in production ...`, exit code 1, nothing deleted. Same for `flask seed undo`.
+  4. Fresh database: `rm app/dev.db; flask db upgrade; flask seed all` -> seeds normally.
+  Verified: a dump of every table (ids, owners, follows, all columns except timestamps/hashes) after seeding a fresh SQLite DB is **identical** to the old seed's output; an 87-request API snapshot (every endpoint, logged in/out, create/edit/delete, friends, sign-up) is identical before and after; all Batch 1 test scripts pass; seeding into a DB whose ids do not start at 1 (an existing user with id 10) still links every route/workout/comment to the right seeded user.
+- **Things to watch:**
+  - If a deploy script or Render "build command" somewhere still runs `flask seed undo`, remove it (it now fails in production anyway).
+  - With plain `DELETE`, Postgres ids keep counting up after a local `--reset` (e.g. demo becomes id 6). Nothing in the app or seeds depends on specific ids any more; the frontend only uses ids it gets from the API.
+  - The production check reads `APP_ENV` (or the old `FLASK_ENV` fallback). Make sure production really sets `APP_ENV=production`.

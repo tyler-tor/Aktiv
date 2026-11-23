@@ -1,128 +1,128 @@
-from app.models import db, Comment, environment, SCHEMA
+from app.models import db, Comment
 
 
-# Adds a demo user, you can add other users here if you want
-def seed_comments():
+def seed_comments(users, routes, workouts):
+    """Creates 60 comments on the seeded routes and workouts."""
     comment1 = Comment(
-        user_id=3, route_id=None, workout_id=2, body="Andy loved to sleep on a bed of nails.")
+        user_id=users[2].id, route_id=None, workout_id=workouts[1].id, body="Andy loved to sleep on a bed of nails.")
     comment2 = Comment(
-        user_id=2, workout_id=1, route_id=None, body="That must be the tenth time I've been arrested for selling deep-fried cigars.")
+        user_id=users[1].id, workout_id=workouts[0].id, route_id=None, body="That must be the tenth time I've been arrested for selling deep-fried cigars.")
     comment3 = Comment(
-        user_id=1, route_id=None, workout_id=5, body="He decided to live his life by the big beats manifesto.")
+        user_id=users[0].id, route_id=None, workout_id=workouts[4].id, body="He decided to live his life by the big beats manifesto.")
     comment4 = Comment(
-        user_id=4, route_id=None, workout_id=3, body="We have never been to Asia, nor have we visited Africa.")
+        user_id=users[3].id, route_id=None, workout_id=workouts[2].id, body="We have never been to Asia, nor have we visited Africa.")
     comment5 = Comment(
-        user_id=5, route_id=None, workout_id=4, body="It didn't make sense unless you had the power to eat colors.")
+        user_id=users[4].id, route_id=None, workout_id=workouts[3].id, body="It didn't make sense unless you had the power to eat colors.")
     comment6 = Comment(
-        user_id=1, route_id=None, workout_id=5, body="Pantyhose and heels are an interesting choice of attire for the beach.")
+        user_id=users[0].id, route_id=None, workout_id=workouts[4].id, body="Pantyhose and heels are an interesting choice of attire for the beach.")
     comment7 = Comment(
-        user_id=2, route_id=None, workout_id=3, body="She always speaks to him in a loud voice.")
+        user_id=users[1].id, route_id=None, workout_id=workouts[2].id, body="She always speaks to him in a loud voice.")
     comment8 = Comment(
-        user_id=3, route_id=None, workout_id=1, body="He said he was not there yesterday; however, many people saw him there.")
+        user_id=users[2].id, route_id=None, workout_id=workouts[0].id, body="He said he was not there yesterday; however, many people saw him there.")
     comment9 = Comment(
-        user_id=4, route_id=None, workout_id=2, body="I never knew what hardship looked like until it started raining bowling balls.")
+        user_id=users[3].id, route_id=None, workout_id=workouts[1].id, body="I never knew what hardship looked like until it started raining bowling balls.")
     comment10 = Comment(
-        user_id=5, route_id=None, workout_id=4, body="It's always a good idea to seek shelter from the evil gaze of the sun.")
+        user_id=users[4].id, route_id=None, workout_id=workouts[3].id, body="It's always a good idea to seek shelter from the evil gaze of the sun.")
     comment11 = Comment(
-        user_id=1, route_id=None, workout_id=6, body="The lyrics of the song sounded like fingernails on a chalkboard.")
+        user_id=users[0].id, route_id=None, workout_id=workouts[5].id, body="The lyrics of the song sounded like fingernails on a chalkboard.")
     comment12 = Comment(
-        user_id=2, route_id=None, workout_id=7, body="A good example of a useful vegetable is medicinal rhubarb.")
+        user_id=users[1].id, route_id=None, workout_id=workouts[6].id, body="A good example of a useful vegetable is medicinal rhubarb.")
     comment13 = Comment(
-        user_id=3, route_id=None, workout_id=8, body="After exploring the abandoned building, he started to believe in ghosts.")
+        user_id=users[2].id, route_id=None, workout_id=workouts[7].id, body="After exploring the abandoned building, he started to believe in ghosts.")
     comment14 = Comment(
-        user_id=4, route_id=None, workout_id=9, body="Waffles are always better without fire ants and fleas.")
+        user_id=users[3].id, route_id=None, workout_id=workouts[8].id, body="Waffles are always better without fire ants and fleas.")
     comment15 = Comment(
-        user_id=5, route_id=None, workout_id=10, body="I liked their first two albums but changed my mind after that charity gig.")
+        user_id=users[4].id, route_id=None, workout_id=workouts[9].id, body="I liked their first two albums but changed my mind after that charity gig.")
     comment16 = Comment(
-        user_id=1, route_id=None, workout_id=7, body="Malls are great places to shop; I can find everything I need under one roof.")
+        user_id=users[0].id, route_id=None, workout_id=workouts[6].id, body="Malls are great places to shop; I can find everything I need under one roof.")
     comment17 = Comment(
-        user_id=2, route_id=None, workout_id=10, body="He stomped on his fruit loops and thus became a cereal killer.")
+        user_id=users[1].id, route_id=None, workout_id=workouts[9].id, body="He stomped on his fruit loops and thus became a cereal killer.")
     comment18 = Comment(
-        user_id=3, route_id=None, workout_id=6, body="Wisdom is easily acquired when hiding under the bed with a saucepan on your head.")
+        user_id=users[2].id, route_id=None, workout_id=workouts[5].id, body="Wisdom is easily acquired when hiding under the bed with a saucepan on your head.")
     comment19 = Comment(
-        user_id=4, route_id=None, workout_id=8, body="You bite up because of your lower jaw.")
+        user_id=users[3].id, route_id=None, workout_id=workouts[7].id, body="You bite up because of your lower jaw.")
     comment20 = Comment(
-        user_id=5, route_id=None, workout_id=9, body="I want a giraffe, but I'm a turtle eating waffles.")
+        user_id=users[4].id, route_id=None, workout_id=workouts[8].id, body="I want a giraffe, but I'm a turtle eating waffles.")
     comment21 = Comment(
-        user_id=1, route_id=20, workout_id=None, body="I love bacon, beer, birds, and baboons.")
+        user_id=users[0].id, route_id=routes[19].id, workout_id=None, body="I love bacon, beer, birds, and baboons.")
     comment22 = Comment(
-        user_id=2, route_id=19, workout_id=None, body="The elephant didn't want to talk about the person in the room.")
+        user_id=users[1].id, route_id=routes[18].id, workout_id=None, body="The elephant didn't want to talk about the person in the room.")
     comment23 = Comment(
-        user_id=3, route_id=18, workout_id=None, body="The glacier came alive as the climbers hiked closer.")
+        user_id=users[2].id, route_id=routes[17].id, workout_id=None, body="The glacier came alive as the climbers hiked closer.")
     comment24 = Comment(
-        user_id=4, route_id=17, workout_id=None, body="I've never seen a more beautiful brandy glass filled with wine.")
+        user_id=users[3].id, route_id=routes[16].id, workout_id=None, body="I've never seen a more beautiful brandy glass filled with wine.")
     comment25 = Comment(
-        user_id=5, route_id=16, workout_id=None, body="The rain pelted the windshield as the darkness engulfed us.")
+        user_id=users[4].id, route_id=routes[15].id, workout_id=None, body="The rain pelted the windshield as the darkness engulfed us.")
     comment26 = Comment(
-        user_id=1, route_id=15, workout_id=None, body="So long and thanks for the fish.")
+        user_id=users[0].id, route_id=routes[14].id, workout_id=None, body="So long and thanks for the fish.")
     comment27 = Comment(
-        user_id=2, route_id=14, workout_id=None, body="Tomorrow will bring something new, so leave today as a memory.")
+        user_id=users[1].id, route_id=routes[13].id, workout_id=None, body="Tomorrow will bring something new, so leave today as a memory.")
     comment28 = Comment(
-        user_id=3, route_id=13, workout_id=None, body="There's no reason a hula hoop can't also be a circus ring.")
+        user_id=users[2].id, route_id=routes[12].id, workout_id=None, body="There's no reason a hula hoop can't also be a circus ring.")
     comment29 = Comment(
-        user_id=4, route_id=12, workout_id=None, body="The beauty of the sunset was obscured by the industrial cranes.")
+        user_id=users[3].id, route_id=routes[11].id, workout_id=None, body="The beauty of the sunset was obscured by the industrial cranes.")
     comment30 = Comment(
-        user_id=5, route_id=11, workout_id=None, body="He had decided to accept his fate of accepting his fate.")
+        user_id=users[4].id, route_id=routes[10].id, workout_id=None, body="He had decided to accept his fate of accepting his fate.")
     comment31 = Comment(
-        user_id=1, route_id=10, workout_id=None, body="I've always wanted to go to Tajikistan, but my cat would miss me.")
+        user_id=users[0].id, route_id=routes[9].id, workout_id=None, body="I've always wanted to go to Tajikistan, but my cat would miss me.")
     comment32 = Comment(
-        user_id=2, route_id=9, workout_id=None, body="I met an interesting turtle while the song on the radio blasted away.")
+        user_id=users[1].id, route_id=routes[8].id, workout_id=None, body="I met an interesting turtle while the song on the radio blasted away.")
     comment33 = Comment(
-        user_id=3, route_id=8, workout_id=None, body="Boulders lined the side of the road foretelling what could come next.")
+        user_id=users[2].id, route_id=routes[7].id, workout_id=None, body="Boulders lined the side of the road foretelling what could come next.")
     comment34 = Comment(
-        user_id=4, route_id=7, workout_id=None, body="He loved eating his bananas in hot dog buns.")
+        user_id=users[3].id, route_id=routes[6].id, workout_id=None, body="He loved eating his bananas in hot dog buns.")
     comment35 = Comment(
-        user_id=5, route_id=6, workout_id=None, body="He didn't want to go to the dentist, yet he went anyway.")
+        user_id=users[4].id, route_id=routes[5].id, workout_id=None, body="He didn't want to go to the dentist, yet he went anyway.")
     comment36 = Comment(
-        user_id=1, route_id=5, workout_id=None, body="Everything was going so well until I was accosted by a purple giraffe.")
+        user_id=users[0].id, route_id=routes[4].id, workout_id=None, body="Everything was going so well until I was accosted by a purple giraffe.")
     comment37 = Comment(
-        user_id=2, route_id=4, workout_id=None, body="I met an interesting turtle while the song on the radio blasted away.")
+        user_id=users[1].id, route_id=routes[3].id, workout_id=None, body="I met an interesting turtle while the song on the radio blasted away.")
     comment38 = Comment(
-        user_id=3, route_id=3, workout_id=None, body="The thunderous roar of the jet overhead confirmed her worst fears.")
+        user_id=users[2].id, route_id=routes[2].id, workout_id=None, body="The thunderous roar of the jet overhead confirmed her worst fears.")
     comment39 = Comment(
-        user_id=4, route_id=2, workout_id=None, body="The underground bunker was filled with chips and candy.")
+        user_id=users[3].id, route_id=routes[1].id, workout_id=None, body="The underground bunker was filled with chips and candy.")
     comment40 = Comment(
-        user_id=5, route_id=1, workout_id=None, body="Nancy decided to make the porta-potty her home.")
+        user_id=users[4].id, route_id=routes[0].id, workout_id=None, body="Nancy decided to make the porta-potty her home.")
     comment41 = Comment(
-        user_id=1, route_id=1, workout_id=None, body="The external scars tell only part of the story.")
+        user_id=users[0].id, route_id=routes[0].id, workout_id=None, body="The external scars tell only part of the story.")
     comment42 = Comment(
-        user_id=2, route_id=2, workout_id=None, body="Dan ate the clouds like cotton candy.")
+        user_id=users[1].id, route_id=routes[1].id, workout_id=None, body="Dan ate the clouds like cotton candy.")
     comment43 = Comment(
-        user_id=3, route_id=3, workout_id=None, body="She opened up her third bottle of wine of the night.")
+        user_id=users[2].id, route_id=routes[2].id, workout_id=None, body="She opened up her third bottle of wine of the night.")
     comment44 = Comment(
-        user_id=4, route_id=4, workout_id=None, body="Her hair was windswept as she rode in the black convertible.")
+        user_id=users[3].id, route_id=routes[3].id, workout_id=None, body="Her hair was windswept as she rode in the black convertible.")
     comment45 = Comment(
-        user_id=5, route_id=5, workout_id=None, body="I like to leave work after my eight-hour tea-break.")
+        user_id=users[4].id, route_id=routes[4].id, workout_id=None, body="I like to leave work after my eight-hour tea-break.")
     comment46 = Comment(
-        user_id=1, route_id=6, workout_id=None, body="Nancy was proud that she ran a tight shipwreck.")
+        user_id=users[0].id, route_id=routes[5].id, workout_id=None, body="Nancy was proud that she ran a tight shipwreck.")
     comment47 = Comment(
-        user_id=2, route_id=7, workout_id=None, body="I really want to go to work, but I am too sick to drive.")
+        user_id=users[1].id, route_id=routes[6].id, workout_id=None, body="I really want to go to work, but I am too sick to drive.")
     comment48 = Comment(
-        user_id=3, route_id=8, workout_id=None, body="His get rich quick scheme was to grow a cactus farm.")
+        user_id=users[2].id, route_id=routes[7].id, workout_id=None, body="His get rich quick scheme was to grow a cactus farm.")
     comment49 = Comment(
-        user_id=4, route_id=9, workout_id=None, body="They throw cabbage that turns your brain into emotional baggage.")
+        user_id=users[3].id, route_id=routes[8].id, workout_id=None, body="They throw cabbage that turns your brain into emotional baggage.")
     comment50 = Comment(
-        user_id=5, route_id=10, workout_id=None, body="Traveling became almost extinct during the pandemic.")
+        user_id=users[4].id, route_id=routes[9].id, workout_id=None, body="Traveling became almost extinct during the pandemic.")
     comment51 = Comment(
-        user_id=1, route_id=11, workout_id=None, body="Trash covered the landscape like sprinkles do a birthday cake.")
+        user_id=users[0].id, route_id=routes[10].id, workout_id=None, body="Trash covered the landscape like sprinkles do a birthday cake.")
     comment52 = Comment(
-        user_id=2, route_id=12, workout_id=None, body="She was too short to see over the fence.")
+        user_id=users[1].id, route_id=routes[11].id, workout_id=None, body="She was too short to see over the fence.")
     comment53 = Comment(
-        user_id=3, route_id=13, workout_id=None, body="More RVs were seen in the storage lot than at the campground.")
+        user_id=users[2].id, route_id=routes[12].id, workout_id=None, body="More RVs were seen in the storage lot than at the campground.")
     comment54 = Comment(
-        user_id=4, route_id=14, workout_id=None, body="He was the type of guy who liked Christmas lights on his house in the middle of July.")
+        user_id=users[3].id, route_id=routes[13].id, workout_id=None, body="He was the type of guy who liked Christmas lights on his house in the middle of July.")
     comment55 = Comment(
-        user_id=5, route_id=15, workout_id=None, body="The ants enjoyed the barbecue more than the family.")
+        user_id=users[4].id, route_id=routes[14].id, workout_id=None, body="The ants enjoyed the barbecue more than the family.")
     comment56 = Comment(
-        user_id=1, route_id=16, workout_id=None, body="The secret code they created made no sense, even to them.")
+        user_id=users[0].id, route_id=routes[15].id, workout_id=None, body="The secret code they created made no sense, even to them.")
     comment57 = Comment(
-        user_id=2, route_id=17, workout_id=None, body="We have never been to Asia, nor have we visited Africa.")
+        user_id=users[1].id, route_id=routes[16].id, workout_id=None, body="We have never been to Asia, nor have we visited Africa.")
     comment58 = Comment(
-        user_id=3, route_id=18, workout_id=None, body="We have a lot of rain in June.")
+        user_id=users[2].id, route_id=routes[17].id, workout_id=None, body="We have a lot of rain in June.")
     comment59 = Comment(
-        user_id=4, route_id=19, workout_id=None, body="He had a vague sense that trees gave birth to dinosaurs.")
+        user_id=users[3].id, route_id=routes[18].id, workout_id=None, body="He had a vague sense that trees gave birth to dinosaurs.")
     comment60 = Comment(
-        user_id=5, route_id=20, workout_id=None, body="He liked to play with words in the bathtub.")
+        user_id=users[4].id, route_id=routes[19].id, workout_id=None, body="He liked to play with words in the bathtub.")
 
     db.session.add(comment1)
     db.session.add(comment2)
@@ -186,19 +186,4 @@ def seed_comments():
         comment59,
         comment60
     ])
-    db.session.commit()
-
-
-# Uses a raw SQL query to TRUNCATE or DELETE the users table. SQLAlchemy doesn't
-# have a built in function to do this. With postgres in production TRUNCATE
-# removes all the data from the table, and RESET IDENTITY resets the auto
-# incrementing primary key, CASCADE deletes any dependent entities.  With
-# sqlite3 in development you need to instead use DELETE to remove all data and
-# it will reset the primary keys for you as well.
-def undo_comments():
-    if environment == "production":
-        db.session.execute(f"TRUNCATE table {SCHEMA}.comments RESTART IDENTITY CASCADE;")
-    else:
-        db.session.execute("DELETE FROM comments")
-
     db.session.commit()
