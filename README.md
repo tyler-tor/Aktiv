@@ -34,7 +34,7 @@ Welcome to my application where users can view/create/delete Routes and interact
   6. Once that is done confirm you are in the root of your project folder, then run 'flask run'
      (the app is built by `create_app()` in `app/__init__.py`; in production run `gunicorn "app:create_app()"`)
   7. Now in a new terminal 'cd' into your react-app folder and run 'npm install' so all dependencies will install
-  8. Now run 'npm start' to initiate the front end and run the application locally
+  8. Now run 'npm run dev' (or 'npm start') to start the Vite dev server; it forwards /api requests to Flask on port 5000
   9. The application will start at http://localhost:3000/
 
 ## Walkthrough of application

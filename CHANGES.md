@@ -452,3 +452,31 @@ at the end of this file.
   - Columns are still `DateTime` *without* time zone: values are UTC but stored "naive" (see Deviations). Rows created before this change hold server-local times.
   - During `flask db upgrade` on SQLite, Alembic 1.20 now *warns* "Unnamed CHECK constraint on reflected table 'routes' is being omitted". Alembic 1.6 silently did the same thing (verified: the resulting `routes` table is identical with both versions). Harmless.
   - Typed `Mapped[...]` models (optional in the plan) were not done; the classic `db.Column` style is fully supported in 2.0.
+
+## A19 — Create React App -> Vite
+- **Problem:** The frontend was built with Create React App (`react-scripts` 4.0.3), which is deprecated and unmaintained. It pulled in webpack 4, Babel 7.14, Jest 26, workbox, etc.: `npm audit` reported **201 known vulnerabilities (19 critical, 63 high)**, almost all in that build tooling. On Node 17+ it needed `NODE_OPTIONS=--openssl-legacy-provider` to build at all, `npm install` printed pages of peer-dependency warnings, and builds/dev-server start were slow.
+- **What changed:**
+  - `react-scripts` removed; **Vite 8.3.8** + **@vitejs/plugin-react 6.3.0** added as `devDependencies`. New `react-app/vite.config.js`:
+    - dev server on **port 3000** (same as before, so a Maps key restricted to `http://localhost:3000/*` keeps working),
+    - **proxy `/api` -> `http://localhost:5000`** (replaces CRA's `"proxy"` field; cookies stay same-origin, no CORS needed),
+    - build output **`react-app/dist/`**.
+  - Flask now serves the build from `react-app/dist` (`static_folder` in `app/__init__.py`, was `react-app/build`). Later, the same `dist/` folder can be uploaded to S3/CloudFront (A42).
+  - `public/index.html` moved to `react-app/index.html` (Vite's entry point) with `<script type="module" src="/src/main.jsx">`; the stray second `</head>` was removed and a `<link rel="icon">` added. `public/` (favicon, images) is still copied as-is into the build.
+  - `src/index.js` -> `src/main.jsx`, and every file that contains JSX was renamed `.js` -> `.jsx` (36 components + `App.jsx`, with `git mv` so history follows). Vite only parses JSX in `.jsx` files. Files without JSX (store, `config.js`, the `index.js` re-exports) keep `.js`. Imports did not change (they have no extensions).
+  - **Env var rename:** `REACT_APP_GOOGLE_MAPS_API_KEY` -> **`VITE_GOOGLE_MAPS_API_KEY`** (Vite only exposes `VITE_*` variables, via `import.meta.env`). `src/config.js` and both `.env.example` files updated; the unused `REACT_APP_BASE_URL` was dropped from `react-app/.env.example`.
+  - `process.env.NODE_ENV` -> `import.meta.env.PROD` / `DEV`; the browser-side `require('redux-logger')` (CommonJS, not available in Vite) became a normal `import` (still only applied in development).
+  - `package.json`: `"type": "module"`, scripts `dev` / `start` (both `vite`), `build` (`vite build`), `preview`; removed `eslintConfig` (CRA's lint preset; linting is A52), `browserslist` and `proxy`; added `"engines": {"node": "^20.19.0 || >=22.12.0"}` (Vite 8's requirement). The `test` script is gone with Jest; frontend tests come back with Vitest in A51.
+  - `package-lock.json` regenerated (lockfile v3). All app dependencies are kept at **exactly** the versions the old lock had (React 17.0.2, react-redux 7.2.4, react-router-dom 5.2.0, @react-google-maps/api 2.17.0, ...); they are upgraded in A20-A23.
+  - `react-app/.gitignore` ignores `/dist`. Root `README.md` mentions `npm run dev`.
+- **Files:** `react-app/package.json`, `react-app/package-lock.json`, `react-app/vite.config.js` (new), `react-app/index.html` (moved from `public/`), `react-app/src/main.jsx` (was `index.js`), `react-app/src/**/*.jsx` (renamed), `react-app/src/config.js`, `react-app/src/store/index.js`, `react-app/.env.example`, `react-app/.gitignore`, `.env.example`, `app/__init__.py`, `README.md`
+- **How to verify:**
+  1. Rename your key: in `react-app/.env.local` change `REACT_APP_GOOGLE_MAPS_API_KEY=` to `VITE_GOOGLE_MAPS_API_KEY=`.
+  2. `cd react-app && rm -rf node_modules && npm ci && npm run dev` -> Vite starts on http://localhost:3000 in about a second; with `flask run` in another terminal, log in with the demo button.
+  3. `npm run build` -> creates `react-app/dist/` in well under a second; then `flask run` alone serves the built app at http://localhost:5000.
+  4. `npm audit` -> 4 high (was 201), all from the old `@testing-library/jest-dom` (updated in A20).
+  Verified: `npm ci` + `npm run build` (Node 22): 142 modules, built in ~0.1 s; Flask serves `dist/index.html` for `/`, `/routes/5` and unknown paths, plus `/favicon.ico`, `/images/*` and the hashed JS asset; the Vite dev server on :3000 proxied `/api/auth/`, a CSRF-protected demo login and `/api/routes/` to Flask. A throw-away jsdom smoke test (not committed) rendered the real `<App/>` with API fixtures on 19 page/login-state combinations plus the demo-login click; its output is the baseline the later frontend items are compared against. Backend API snapshot unchanged.
+- **Things to watch:**
+  - **Breaking:** the env var rename (step 1), the build folder (`dist/` instead of `build/`; delete an old `react-app/build/` folder if you have one), and `npm start` now runs Vite (same port).
+  - Vite needs Node 20.19+ or 22.12+.
+  - Two pages crash on existing bugs that are **not** caused by this change (they behave the same before and after): `/routes` (`components/UserRoutes/Routes.jsx` maps over `state.routes`, which is an object with `null` values) and `/users` (`UsersList.jsx` does the same with `state.users`). Neither page is linked from the navbar. Not fixed here (outside A19-A23).
+  - Maps rendering was not checked in a real browser (no API key here).

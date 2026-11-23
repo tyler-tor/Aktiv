@@ -25,7 +25,8 @@ def create_app(config_name=None):
     (FLASK_APP=app); gunicorn uses `gunicorn "app:create_app()"`.
     """
     config_name = config_name or APP_ENV
-    app = Flask(__name__, static_folder='../react-app/build', static_url_path='/')
+    # The React production build (`npm run build` in react-app/ -> dist/).
+    app = Flask(__name__, static_folder='../react-app/dist', static_url_path='/')
 
     app.config.from_object(get_config(config_name))
     check_secret_key(app.config.get('SECRET_KEY'), config_name)
@@ -73,7 +74,7 @@ def load_user(id):
 
 
 # No CORS: the React app is always served from the same origin as the API
-# (Flask serves the build in production; the CRA dev server proxies /api to
+# (Flask serves the build in production; the Vite dev server proxies /api to
 # Flask in development), so browsers never make cross-origin API calls.
 
 # (The Heroku-era https_redirect hook was removed: HTTPS redirects are done
