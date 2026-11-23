@@ -16,8 +16,9 @@ class Workout(db.Model):
     total_time = db.Column(db.String(100), nullable=False)
     image_url = db.Column(db.String(255), nullable=False)
     distance = db.Column(db.String(500))
-    created_at = db.Column(db.DateTime, default=datetime.now)
-    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+    created_at = db.Column(db.DateTime, default=datetime.now, server_default=db.func.now())
+    updated_at = db.Column(
+        db.DateTime, default=datetime.now, onupdate=datetime.now, server_default=db.func.now())
 
     users = db.relationship("User", back_populates="workouts", single_parent=True)
     comments = db.relationship('Comment', back_populates='workouts', cascade='all, delete-orphan', single_parent=True)

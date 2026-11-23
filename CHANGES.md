@@ -12,12 +12,14 @@ changed, which files were touched, how to check it yourself, and what to keep an
 - **A4 (sign-up picture):** the plan adds `@login_required` to `/api/img/upload`, but the sign-up page uploaded the profile picture *before* the account existed, so that would have broken sign-up pictures. Minimal fix: the sign-up page now uploads the picture right after the account is created and saves it via a new `PUT /api/auth/profile-picture` endpoint (accepts only URLs from your bucket's `uploads/` prefix).
 - **Pipfile.lock not regenerated:** new Python packages (Pillow in A4, email-validator in A9) were added to both `requirements.txt` and `Pipfile`, but `Pipfile.lock` could not be re-locked here (no pipenv/Python 3.9). `pipenv install` will re-lock automatically, or run `pipenv lock`. A16 (later) removes the Pipfile entirely.
 - **A9 rate limiting skipped:** optional in the plan; it adds Flask-Limiter and needs shared storage across workers, so it is better done with the EC2/Caddy setup (later batch).
+- **A15 done before A18/A47:** the plan suggested doing the migration cleanup after the SQLAlchemy 2.0 upgrade and the Render-schema decision. It was done now on SQLAlchemy 1.4 / Alembic 1.6 using only basic operations (rebuild `follows`, drop `workouts.route_id`, set column defaults) and keeps supporting the production `SCHEMA`, so it does not block either later item. Decision taken: **drop** `workouts.route_id` rather than add it to the model.
 
 ## Open questions for Tyler
 
 - **S3 (A5):** Is there a live deployment still using `S3_KEY`/`S3_SECRET`? Those env vars are no longer read; set `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` (or an IAM role) and add the `uploads/*` bucket policy described in A5, or uploads will fail / be private.
 - **Workout comments GET (found during A8):** the frontend calls `GET /api/workouts/<id>/comments` but the backend only has POST on that URL (405). Add the GET endpoint, or remove the unused frontend call? (Not changed - outside A1-A15.)
 - **APP_ENV (A11):** where is the app currently deployed (Render?) and does it set `FLASK_ENV=production`? It keeps working via the fallback, but please add `APP_ENV=production` there.
+- **Postgres check for A15:** the new migration was verified on SQLite and its Postgres SQL was reviewed offline, but not run on a real Postgres. Before running it on a production database, take a `pg_dump` and try it on a copy (or wait for the Docker Postgres in A38).
 
 ## A1 — Rotate and remove the committed `SECRET_KEY`
 - **Problem:** `.env.example` contained a real-looking 68-character `SECRET_KEY`. Flask uses this key to sign the session cookie (the cookie that says "this browser is logged in as user 3") and the CSRF token. Anyone who copied the example file to `.env` (or deployed with it) was using a key that is public on GitHub, so an attacker could forge a session cookie and log in as any user, including you. The value is also in git history, so it must be treated as burned forever.
@@ -312,3 +314,32 @@ changed, which files were touched, how to check it yourself, and what to keep an
 - **Things to watch / follow-ups:**
   - Pages still fetch their own data too (e.g. `RouteDisplay` calls `getAllRoutes()` again); A21/A27 reduce that duplicate fetching.
   - `GET_ROUTES` in `store/routes.js` resets `currentRoute` to `null`; if you ever start a background refetch of all routes while a route page is open, it can blank that page - worth changing when the store is refactored (A21).
+
+## A15 — Reconcile database migrations with models
+- **Problem:** The database built by the migrations did not match the models:
+  - The only migration created `workouts.route_id` (with a foreign key to `routes`), but the `Workout` model has no such column - so `flask db migrate` always wanted to drop it, and the column silently sat there unused.
+  - `follows` (the friendship table) had **no primary key**: both columns were nullable, so `NULL` rows were possible, and there was no `ON DELETE CASCADE`, so deleting a user directly in Postgres would fail on (or orphan) their friendship rows. The seed data also contained two self-follows.
+  - Timestamps only got values from Python (`default=datetime.now`), so rows inserted with raw SQL had `NULL` `created_at`/`updated_at`.
+  - The first migration's `upgrade()` still had commented-out `op.drop_table(...)` lines from earlier hacks.
+- **What changed:**
+  - New migration `migrations/versions/b7c1e9a4d2f3_reconcile_models.py` (revises `0a0f8863271d`):
+    1. drops `workouts.route_id` (decision: workouts are not linked to routes anywhere in the app, so removing the column matches the model; linking them could be a future feature),
+    2. rebuilds `follows` as `follows_new` with `PRIMARY KEY (follower_id, followed_id)`, `NOT NULL`, `ON DELETE CASCADE` foreign keys, copies the rows over (skipping `NULL` rows, duplicates and self-follows), drops the old table and renames the new one. Rebuilding works identically on SQLite and Postgres and avoids guessing the old auto-generated constraint names,
+    3. adds a database default `CURRENT_TIMESTAMP`/`now()` to `created_at` and `updated_at` on `users`, `routes`, `workouts`, `comments`.
+    It honours the production `SCHEMA` (Render-style) like the first migration, and has a working `downgrade()`.
+  - Models: `follows` columns are `primary_key=True` with `ondelete='CASCADE'` (the redundant unique constraint is gone - the primary key already guarantees uniqueness); every `created_at`/`updated_at` has `server_default=db.func.now()` (the Python default is kept).
+  - Removed the commented `drop_table` lines from the first migration.
+- **Files:** `migrations/versions/b7c1e9a4d2f3_reconcile_models.py` (new), `migrations/versions/0a0f8863271d_.py`, `app/models/user.py`, `app/models/route.py`, `app/models/workout.py`, `app/models/comment.py`
+- **How to verify:**
+  1. **Back up first:** `cp app/dev.db app/dev.db.bak` (for Postgres: `pg_dump`).
+  2. `flask db upgrade` -> "Running upgrade 0a0f8863271d -> b7c1e9a4d2f3".
+  3. `flask db migrate -m check` -> "No changes in schema detected." (no file created) = models and DB agree.
+  4. `flask db downgrade` then `flask db upgrade` -> both run cleanly.
+  5. Demo login, friends list, routes and workouts all still work.
+  Verified on SQLite: fresh DB (upgrade, seed, downgrade, upgrade, `flask seed undo/all`), a **copy of your `app/dev.db`** (5 users / 20 routes / 10 workouts / 60 comments kept; follows 15 -> 13 because the two self-follows were dropped; `flask db migrate` empty), and all earlier test scripts pass on the migrated schema. For Postgres, the upgrade and downgrade SQL were generated offline with `APP_ENV=production SCHEMA=flask_schema flask db upgrade 0a0f8863271d:b7c1e9a4d2f3 --sql` and reviewed (correct schema-qualified `ALTER`/`CREATE`); it was **not run against a live Postgres** (none available here).
+- **Things to watch / follow-ups:**
+  - The plan recommended doing this after the SQLAlchemy 2.0 upgrade (A18) and the Render-schema decision (A47). It was done now on SQLAlchemy 1.4 (see Deviations); the migration uses only basic Alembic operations that work the same on Alembic 1.6 and newer.
+  - The migration permanently deletes `follows` rows that were `NULL` or self-follows, and the `workouts.route_id` values (all `NULL` in the seed data). Take a backup of any real database first.
+  - On SQLite, `ON DELETE CASCADE` only takes effect if `PRAGMA foreign_keys=ON` (SQLAlchemy leaves it off); the ORM already removes friendship rows when a user is deleted, so behaviour is the same. On Postgres the cascade is enforced by the database.
+  - Server defaults use database time (UTC on most servers) while Python defaults use the app server's local time; A18 moves everything to timezone-aware UTC.
+  - Indexes on foreign keys come next in A26 (later batch).

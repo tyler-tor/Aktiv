@@ -13,8 +13,9 @@ class Comment(db.Model):
     route_id = db.Column(db.Integer, db.ForeignKey(add_prefix_for_prod('routes.id')))
     workout_id = db.Column(db.Integer, db.ForeignKey(add_prefix_for_prod('workouts.id')))
     body = db.Column(db.String(255), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.now)
-    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+    created_at = db.Column(db.DateTime, default=datetime.now, server_default=db.func.now())
+    updated_at = db.Column(
+        db.DateTime, default=datetime.now, onupdate=datetime.now, server_default=db.func.now())
 
     users = db.relationship("User", back_populates="comments", single_parent=True)
     routes = db.relationship("Route", back_populates="comments", single_parent=True)

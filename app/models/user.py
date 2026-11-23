@@ -3,10 +3,16 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 from datetime import datetime
 
+# Association table for friendships ("followed_id is followed by follower_id").
+# The two ids together are the primary key (no duplicates, never NULL), and
+# deleting a user deletes their rows here (ON DELETE CASCADE).
 follows = db.Table('follows',
-    db.Column('follower_id', db.Integer, db.ForeignKey(add_prefix_for_prod('users.id'))),
-    db.Column('followed_id', db.Integer, db.ForeignKey(add_prefix_for_prod('users.id'))),
-    db.UniqueConstraint('follower_id', 'followed_id')
+    db.Column('follower_id', db.Integer,
+              db.ForeignKey(add_prefix_for_prod('users.id'), ondelete='CASCADE'),
+              primary_key=True),
+    db.Column('followed_id', db.Integer,
+              db.ForeignKey(add_prefix_for_prod('users.id'), ondelete='CASCADE'),
+              primary_key=True)
 )
 
 if environment == "production":
@@ -25,8 +31,9 @@ class User(db.Model, UserMixin):
     email = db.Column(db.String(255), nullable=False, unique=True)
     profile_picture = db.Column(db.String(255), default='https://www.dovercourt.org/wp-content/uploads/2019/11/610-6104451_image-placeholder-png-user-profile-placeholder-image-png.jpg')
     hashed_password = db.Column(db.String(255), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.now)
-    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+    created_at = db.Column(db.DateTime, default=datetime.now, server_default=db.func.now())
+    updated_at = db.Column(
+        db.DateTime, default=datetime.now, onupdate=datetime.now, server_default=db.func.now())
 
     routes = db.relationship('Route', back_populates='users', cascade='all, delete-orphan')
     workouts = db.relationship('Workout', back_populates='users', cascade='all, delete-orphan')
