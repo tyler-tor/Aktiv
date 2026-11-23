@@ -28,14 +28,20 @@ def all_comments():
     return {'comments': [comment.to_dict() for comment in comments]}
 
 
+def comment_not_found():
+    return {'errors': ['Comment not found']}, 404
+
+
 # get information about a specific comment
 @comment_routes.route('/<int:id>')
 @login_required
 def one_comment(id):
     """
-    Query for a user by id and returns that user in a dictionary
+    Returns one comment by id (404 if it does not exist)
     """
     comment = Comment.query.get(id)
+    if comment is None:
+        return comment_not_found()
     return comment.to_dict()
 
 
@@ -43,24 +49,34 @@ def one_comment(id):
 @comment_routes.route('/<int:id>', methods=['PUT'])
 @login_required
 def update_comment(id):
-    form = CreateCommentForm()
+    """
+    Updates one of the current user's comments (404 missing, 403 not yours)
+    """
     comment = Comment.query.get(id)
-    if comment.user_id == current_user.id:
-        if form.validate_on_submit():
-            comment.body = form.data['body']
-            db.session.commit()
-            return comment.to_dict()
-        return {'errors': validation_errors_to_error_messages(form.errors)}, 401
-    return {'errors': 'This comment does not belong to you!'}
+    if comment is None:
+        return comment_not_found()
+    if comment.user_id != current_user.id:
+        return {'errors': ['This comment does not belong to you!']}, 403
+    form = CreateCommentForm()
+    if form.validate_on_submit():
+        comment.body = form.data['body']
+        db.session.commit()
+        return comment.to_dict()
+    return {'errors': validation_errors_to_error_messages(form.errors)}, 400
 
 
 # delete a specific comment
 @comment_routes.route('/<int:id>', methods=['DELETE'])
 @login_required
 def delete_comment(id):
+    """
+    Deletes one of the current user's comments (404 missing, 403 not yours)
+    """
     comment = Comment.query.get(id)
-    if comment and comment.user_id == current_user.id:
-        db.session.delete(comment)
-        db.session.commit()
-        return {'message': 'Success'}
-    return {'errors': 'This comment does not belong to you!'}
+    if comment is None:
+        return comment_not_found()
+    if comment.user_id != current_user.id:
+        return {'errors': ['This comment does not belong to you!']}, 403
+    db.session.delete(comment)
+    db.session.commit()
+    return {'message': 'Success'}

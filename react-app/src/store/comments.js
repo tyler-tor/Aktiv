@@ -105,7 +105,7 @@ export const newWorkoutComment = (comment) => async (dispatch) => {
             return data.errors
         }
     }else {
-        return [{'errors': 'A error occured'}]
+        return ['An error occurred. Please try again.']
     }
 };
 
@@ -131,7 +131,7 @@ export const updateComment = (comment) => async (dispatch) => {
             return data.errors
         }
     }else {
-        return [{'errors': 'A error occured'}]
+        return ['An error occurred. Please try again.']
     }
 };
 

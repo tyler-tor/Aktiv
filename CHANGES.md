@@ -15,6 +15,7 @@ changed, which files were touched, how to check it yourself, and what to keep an
 ## Open questions for Tyler
 
 - **S3 (A5):** Is there a live deployment still using `S3_KEY`/`S3_SECRET`? Those env vars are no longer read; set `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` (or an IAM role) and add the `uploads/*` bucket policy described in A5, or uploads will fail / be private.
+- **Workout comments GET (found during A8):** the frontend calls `GET /api/workouts/<id>/comments` but the backend only has POST on that URL (405). Add the GET endpoint, or remove the unused frontend call? (Not changed - outside A1-A15.)
 
 ## A1 — Rotate and remove the committed `SECRET_KEY`
 - **Problem:** `.env.example` contained a real-looking 68-character `SECRET_KEY`. Flask uses this key to sign the session cookie (the cookie that says "this browser is logged in as user 3") and the CSRF token. Anyone who copied the example file to `.env` (or deployed with it) was using a key that is public on GitHub, so an attacker could forge a session cookie and log in as any user, including you. The value is also in git history, so it must be treated as burned forever.
@@ -150,3 +151,30 @@ changed, which files were touched, how to check it yourself, and what to keep an
 - **Things to watch / follow-ups:**
   - Friendships are still stored as two `follows` rows ("mutual follow"). The table gets a proper composite primary key in A15.
   - The responses still embed full `to_dict()` users (slow); A24/A25 slim them down.
+
+## A8 — Consistent 404s, status codes, and the "newest row" race
+- **Problem:**
+  - Asking for a record that does not exist (`GET /api/routes/9999`, comment on a deleted workout, edit a deleted comment, ...) crashed with `AttributeError: 'NoneType' object has no attribute ...` -> HTTP 500.
+  - Validation errors returned **401** ("not logged in"), which is the wrong meaning and could make a frontend think the session expired.
+  - "Not yours" on delete returned **200** with an error body, so the frontend treated it as success and removed the item from the screen.
+  - `add_route`/`add_workout` committed the new row and then returned `Route.query.order_by(created_at.desc()).first()` - "the newest row in the whole table". If two users posted at the same moment, you could get back someone else's route.
+  - `add_comment_to_workout` returned `form.errors` (a dict) while everything else returned a list of strings, and the users endpoints returned 200 with a string error for unknown ids.
+  - Frontend: `updateRoute`, `addRoute` and `updateWorkout` did `const data = response.json()` without `await`, so `data.errors` was always undefined and server errors were silently ignored.
+- **What changed:**
+  - Every "by id" endpoint (routes, workouts, comments, route comments, users and their sub-lists, friends) checks for `None` and returns **404** `{"errors": ["... not found"]}`.
+  - Update/delete of someone else's route/workout/comment -> **403**.
+  - Form validation errors -> **400** with a list of strings. Login failures stay **401** (that is an auth failure; see A9).
+  - `add_route`/`add_workout` return the object they just created.
+  - All error bodies use the same shape: `{"errors": ["message", ...]}` (except the upload endpoint, which keeps its existing string message that the upload UI displays).
+  - Frontend stores: added the missing `await`s and an "An error occurred. Please try again." fallback for 5xx in routes, workouts and comments.
+- **Files:** `app/api/route_routes.py`, `app/api/workout_routes.py`, `app/api/comments_routes.py`, `app/api/user_routes.py`, `app/api/auth_routes.py`, `react-app/src/store/routes.js`, `react-app/src/store/workouts.js`, `react-app/src/store/comments.js`
+- **How to verify:**
+  1. Logged in: `GET /api/routes/9999` -> 404 JSON (was 500). Same for `/api/workouts/9999`, `/api/comments/9999`, `/api/users/9999`.
+  2. `DELETE` another user's route/workout/comment -> 403 (was 200), and nothing is deleted.
+  3. `POST /api/routes/` with `{"title": ""}` -> 400 with a list of messages; in the UI, the New Route form shows the messages.
+  4. Create a route -> the response is exactly the route you created.
+  Verified with the Flask test client (25 checks, including a simulated "newer row by another user" for the race).
+- **Things to watch / follow-ups:**
+  - Pre-existing bug, not changed (outside A8): `store/comments.js` calls `GET /api/workouts/<id>/comments`, which has no backend route (only POST exists) -> 405. Workout comments still display because they are embedded in the workout itself. Worth a small follow-up.
+  - Flask-Login still answers unauthenticated API calls with a 302 redirect to `/api/auth/unauthorized` (which then returns 401). `fetch` follows the redirect, so the frontend sees 401 as before.
+  - A50 (later) will cover these with automated tests.

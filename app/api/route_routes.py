@@ -17,12 +17,17 @@ def validation_errors_to_error_messages(validation_errors):
             errorMessages.append(f'{field} : {error}')
     return errorMessages
 
+
+def route_not_found():
+    return {'errors': ['Route not found']}, 404
+
+
 # get all routes
 @route_routes.route('/')
 @login_required
 def all_routes():
     """
-    Query for all users and returns them in a list of user dictionaries
+    Returns all routes in a list of route dictionaries
     """
     routes = Route.query.all()
     return {'routes': [route.to_dict() for route in routes]}
@@ -32,6 +37,9 @@ def all_routes():
 @route_routes.route('/', methods=['POST'])
 @login_required
 def add_route():
+    """
+    Creates a route owned by the current user and returns it
+    """
     form = CreateRouteForm()
 
     if form.validate_on_submit():
@@ -49,11 +57,11 @@ def add_route():
         )
         db.session.add(route)
         db.session.commit()
-
-        created_route = Route.query.order_by(Route.created_at.desc()).first()
-        # print('route---------------', created_route.to_dict())
-        return created_route.to_dict()
-    return {'errors': validation_errors_to_error_messages(form.errors)}, 401
+        # Return the object we just created (it has its id after commit).
+        # The old code returned "the newest row in the table", which could be
+        # another user's route if two people posted at the same time.
+        return route.to_dict()
+    return {'errors': validation_errors_to_error_messages(form.errors)}, 400
 
 
 # get information on a selected route
@@ -61,9 +69,11 @@ def add_route():
 @login_required
 def one_route(id):
     """
-    Query for a user by id and returns that user in a dictionary
+    Returns one route by id (404 if it does not exist)
     """
     route = Route.query.get(id)
+    if route is None:
+        return route_not_found()
     return route.to_dict()
 
 
@@ -71,9 +81,12 @@ def one_route(id):
 @route_routes.route('/<int:id>', methods=['PUT'])
 @login_required
 def update_route(id):
+    """
+    Updates one of the current user's routes (404 missing, 403 not yours)
+    """
     route = Route.query.get(id)
     if route is None:
-        return {'errors': ['Route not found']}, 404
+        return route_not_found()
     if route.user_id != current_user.id:
         return {'errors': ['You can only edit your own routes']}, 403
     form = CreateRouteForm()
@@ -81,40 +94,49 @@ def update_route(id):
         route.set_kwargs(**{field: form.data[field] for field in Route.EDITABLE_FIELDS})
         db.session.commit()
         return route.to_dict()
-    return {'errors': validation_errors_to_error_messages(form.errors)}, 401
+    return {'errors': validation_errors_to_error_messages(form.errors)}, 400
 
 
 # delete a specific route
 @route_routes.route('/<int:id>', methods=['DELETE'])
 @login_required
 def delete_route(id):
+    """
+    Deletes one of the current user's routes (404 missing, 403 not yours)
+    """
     route = Route.query.get(id)
-    if route and current_user.id == route.user_id:
-        db.session.delete(route)
-        db.session.commit()
-
-        return {'message': 'Success'}
-    return {'errors': 'That route does not exist!'}
+    if route is None:
+        return route_not_found()
+    if route.user_id != current_user.id:
+        return {'errors': ['You can only delete your own routes']}, 403
+    db.session.delete(route)
+    db.session.commit()
+    return {'message': 'Success'}
 
 
 #get all comments on a route
 @route_routes.route('/<int:id>/comments')
 @login_required
 def get_comments_to_route(id):
+    """
+    Returns all comments on a route (404 if the route does not exist)
+    """
     route = Route.query.get(id)
-    if route:
-        # print('route-------------', route.to_dict())
-        comments = route.to_dict()['comments']
-        # print('comments----------------', comments)
-        return {'comments': comments}
-    return {'errors': 'This route does not exist!'}
+    if route is None:
+        return route_not_found()
+    return {'comments': [comment.to_dict() for comment in route.comments]}
 
 
 # add a comment to a route
 @route_routes.route('/<int:id>/comments', methods=['POST'])
 @login_required
 def add_comment_to_route(id):
+    """
+    Adds a comment by the current user to a route (404 if the route does not exist)
+    """
     route = Route.query.get(id)
+    if route is None:
+        return route_not_found()
     form = CreateCommentForm()
 
     if form.validate_on_submit():
@@ -125,6 +147,5 @@ def add_comment_to_route(id):
         )
         db.session.add(comment)
         db.session.commit()
-        # print('route---------------', route.to_dict())
         return comment.to_dict()
-    return {'errors': validation_errors_to_error_messages(form.errors)}, 401
+    return {'errors': validation_errors_to_error_messages(form.errors)}, 400

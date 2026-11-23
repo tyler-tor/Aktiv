@@ -65,10 +65,12 @@ export const addRoute = (route) => async (dispatch) => {
         const newRoute = await response.json();
         dispatch(addRouteAction(newRoute));
     } else if (response.status < 500) {
-        const data = response.json();
+        const data = await response.json();
         if (data.errors) {
             return data.errors;
         }
+    } else {
+        return ['An error occurred. Please try again.'];
     }
 }
 
@@ -94,12 +96,13 @@ export const updateRoute = (route) => async (dispatch) => {
         const update = await response.json();
         dispatch(updateRouteAction(update));
     } else if (response.status < 500) {
-        const data = response.json();
+        const data = await response.json();
 
         if (data.errors) {
             return data.errors
         };
     } else {
+        return ['An error occurred. Please try again.'];
     }
 };
 

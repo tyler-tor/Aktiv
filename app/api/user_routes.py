@@ -21,7 +21,7 @@ def user(id):
     user = User.query.get(id)
     if user:
         return user.to_dict()
-    return {'errors': 'This user does not exist!'}
+    return {'errors': ['This user does not exist!']}, 404
 
 
 # get routes from a selected user
@@ -32,7 +32,7 @@ def user_route(id):
     if user:
         routes = user.to_dict()['routes']
         return {'routes': routes}
-    return {'errors': 'This user does not exist!'}
+    return {'errors': ['This user does not exist!']}, 404
 
 
 # get comments from a selected user
@@ -43,7 +43,7 @@ def user_comments(id):
     if user:
         comments = user.to_dict()['comments']
         return {'comments': comments}
-    return {'errors': 'This user does not exist!'}
+    return {'errors': ['This user does not exist!']}, 404
 
 
 # get workouts from a selected user
@@ -54,7 +54,7 @@ def user_workouts(id):
     if user:
         workouts = user.to_dict()['workouts']
         return {'workouts': workouts}
-    return {'errors': 'This user does not exist!'}
+    return {'errors': ['This user does not exist!']}, 404
 
 
 # get friends of selected user
@@ -65,7 +65,7 @@ def user_friends(id):
     if user:
         friends = user.to_dict()['friends']
         return {'friends': friends}
-    return {'errors': 'This user does not exist!'}
+    return {'errors': ['This user does not exist!']}, 404
 
 
 def _is_follower(user, other):

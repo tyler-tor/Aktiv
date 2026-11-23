@@ -19,12 +19,16 @@ def validation_errors_to_error_messages(validation_errors):
     return errorMessages
 
 
+def workout_not_found():
+    return {'errors': ['Workout not found']}, 404
+
+
 # get all workouts
 @workout_routes.route('/')
 @login_required
 def all_workouts():
     """
-    Query for all users and returns them in a list of user dictionaries
+    Returns all workouts in a list of workout dictionaries
     """
     workouts = Workout.query.all()
     return {'workouts': [workout.to_dict() for workout in workouts]}
@@ -34,6 +38,9 @@ def all_workouts():
 @workout_routes.route('/', methods=['POST'])
 @login_required
 def add_workout():
+    """
+    Creates a workout owned by the current user and returns it
+    """
     form = CreateWorkoutForm()
 
     if form.validate_on_submit():
@@ -48,9 +55,10 @@ def add_workout():
         )
         db.session.add(workout)
         db.session.commit()
-        created_workout = Workout.query.order_by(Workout.created_at.desc()).first()
-        return created_workout.to_dict()
-    return {'errors': validation_errors_to_error_messages(form.errors)}, 401
+        # Return the object we just created, not "the newest row in the table"
+        # (which could belong to another user posting at the same moment).
+        return workout.to_dict()
+    return {'errors': validation_errors_to_error_messages(form.errors)}, 400
 
 
 # get information about a specific workout
@@ -58,9 +66,11 @@ def add_workout():
 @login_required
 def one_workout(id):
     """
-    Query for a user by id and returns that user in a dictionary
+    Returns one workout by id (404 if it does not exist)
     """
     workout = Workout.query.get(id)
+    if workout is None:
+        return workout_not_found()
     return workout.to_dict()
 
 
@@ -68,9 +78,12 @@ def one_workout(id):
 @workout_routes.route('/<int:id>', methods=['PUT'])
 @login_required
 def update_workout(id):
+    """
+    Updates one of the current user's workouts (404 missing, 403 not yours)
+    """
     workout = Workout.query.get(id)
     if workout is None:
-        return {'errors': ['Workout not found']}, 404
+        return workout_not_found()
     if workout.user_id != current_user.id:
         return {'errors': ['You can only edit your own workouts']}, 403
     form = CreateWorkoutForm()
@@ -78,27 +91,36 @@ def update_workout(id):
         workout.set_kwargs(**{field: form.data[field] for field in Workout.EDITABLE_FIELDS})
         db.session.commit()
         return workout.to_dict()
-    return {'errors': validation_errors_to_error_messages(form.errors)}, 401
+    return {'errors': validation_errors_to_error_messages(form.errors)}, 400
 
 
 # delete a specific workout
 @workout_routes.route('/<int:id>', methods=['DELETE'])
 @login_required
 def delete_workout(id):
+    """
+    Deletes one of the current user's workouts (404 missing, 403 not yours)
+    """
     workout = Workout.query.get(id)
-    if workout and current_user.id == workout.user_id:
-        db.session.delete(workout)
-        db.session.commit()
-
-        return {'message': 'Success'}
-    return {'errors': 'That workout does not exist!'}
+    if workout is None:
+        return workout_not_found()
+    if workout.user_id != current_user.id:
+        return {'errors': ['You can only delete your own workouts']}, 403
+    db.session.delete(workout)
+    db.session.commit()
+    return {'message': 'Success'}
 
 
 # add a comment to a specific workout
 @workout_routes.route('/<int:id>/comments', methods=['POST'])
 @login_required
 def add_comment_to_workout(id):
+    """
+    Adds a comment by the current user to a workout (404 if it does not exist)
+    """
     workout = Workout.query.get(id)
+    if workout is None:
+        return workout_not_found()
     form = CreateCommentForm()
 
     if form.validate_on_submit():
@@ -110,4 +132,4 @@ def add_comment_to_workout(id):
         db.session.add(comment)
         db.session.commit()
         return comment.to_dict()
-    return {'errors': form.errors}, 401
+    return {'errors': validation_errors_to_error_messages(form.errors)}, 400

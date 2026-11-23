@@ -95,7 +95,7 @@ def sign_up():
         user_dict = user.to_dict()
         user_dict['mapKey'] = os.environ.get('REACT_APP_NEXT_PUBLIC_GOOGLE_MAPS_API_KEY')
         return user_dict
-    return {'errors': validation_errors_to_error_messages(form.errors)}, 401
+    return {'errors': validation_errors_to_error_messages(form.errors)}, 400
 
 
 @auth_routes.route('/profile-picture', methods=['PUT'])
