@@ -1,6 +1,6 @@
 import { GoogleMap, useLoadScript, Marker, InfoWindow } from "@react-google-maps/api";
 import React, { useMemo, useState } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink } from "react-router";
 import { useEffect } from "react";
 import { useSelector, useDispatch } from 'react-redux'
 import { getAllRoutes } from "../../store/routes";

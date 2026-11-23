@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { BrowserRouter, Route, Switch, Redirect } from 'react-router-dom';
+import { BrowserRouter, Routes as RouterRoutes, Route, Navigate } from 'react-router';
 import { useDispatch, useSelector } from 'react-redux';
 import ActivityFeed from './components/ActivityFeed';
 import LoginForm from './components/auth/LoginForm';
@@ -68,51 +68,31 @@ function App() {
     return null;
   }
 
-  // One flat <Switch>: it renders the FIRST matching route only. (Wrapping
-  // routes in <>...</> fragments inside <Switch> broke that matching and made a
-  // 404 page impossible.) Logged-out users who open a protected page are sent
-  // to the login page by <ProtectedRoute>.
+  // React Router v7: <Routes> picks the best-matching route (paths match
+  // exactly unless they end in "/*"). The protected pages are children of a
+  // layout route: <ProtectedRoute> renders them through <Outlet /> for a
+  // logged-in user and sends logged-out users to the login page at "/".
+  // (RouterRoutes is react-router's <Routes>, renamed because this app already
+  // has a page component called Routes.)
   return (
     <BrowserRouter>
       <NavBar />
-      <Switch>
-        <Route path='/' exact={true}>
-          {user ? <HomePage /> : <LoginForm />}
+      <RouterRoutes>
+        <Route path='/' element={user ? <HomePage /> : <LoginForm />} />
+        <Route path='/sign-up' element={user ? <Navigate to='/' replace /> : <SignUpForm />} />
+        <Route path='/login' element={<Navigate to='/' replace />} />
+        <Route element={<ProtectedRoute />}>
+          <Route path='/users' element={<UsersList />} />
+          <Route path='/users/:userId' element={<User />} />
+          <Route path='/routes' element={<Routes />} />
+          <Route path='/activity' element={<ActivityFeed />} />
+          <Route path='/routes/:routeId' element={<RouteDisplay />} />
+          <Route path='/workouts/:workoutId' element={<WorkoutDisplay />} />
+          <Route path='/newRoute' element={<NewRoute />} />
+          <Route path='/newWorkout' element={<NewWorkout />} />
         </Route>
-        <Route path='/sign-up' exact={true}>
-          {user ? <Redirect to='/' /> : <SignUpForm />}
-        </Route>
-        <Route path='/login' exact={true}>
-          <Redirect to='/' />
-        </Route>
-        <ProtectedRoute path='/users' exact={true}>
-          <UsersList />
-        </ProtectedRoute>
-        <ProtectedRoute path='/users/:userId' exact={true}>
-          <User />
-        </ProtectedRoute>
-        <ProtectedRoute path='/routes' exact={true}>
-          <Routes />
-        </ProtectedRoute>
-        <ProtectedRoute path='/activity' exact={true}>
-          <ActivityFeed />
-        </ProtectedRoute>
-        <ProtectedRoute path='/routes/:routeId' exact={true}>
-          <RouteDisplay />
-        </ProtectedRoute>
-        <ProtectedRoute path='/workouts/:workoutId' exact={true}>
-          <WorkoutDisplay />
-        </ProtectedRoute>
-        <ProtectedRoute path='/newRoute' exact={true}>
-          <NewRoute />
-        </ProtectedRoute>
-        <ProtectedRoute path='/newWorkout' exact={true}>
-          <NewWorkout />
-        </ProtectedRoute>
-        <Route>
-          <NotFound />
-        </Route>
-      </Switch>
+        <Route path='*' element={<NotFound />} />
+      </RouterRoutes>
       <Footer />
     </BrowserRouter>
   );

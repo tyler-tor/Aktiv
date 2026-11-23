@@ -1,20 +1,20 @@
 import React from 'react';
 import { useDispatch } from 'react-redux';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { deleteWorkout } from '../../store/workouts';
 import './WorkoutDisplay.css'
 
 function DeleteWorkoutForm({workoutId, onClose}) {
   const dispatch = useDispatch();
-  const history = useHistory();
+  const navigate = useNavigate();
 
   const destroyWorkout = async (e) => {
     e.preventDefault();
     const data = await dispatch(deleteWorkout(workoutId)).then(() => {
-      history.push('/activity')
+      navigate('/activity')
     })
     if (!data) {
-      history.push('/activity');
+      navigate('/activity');
       onClose();
     }
   }

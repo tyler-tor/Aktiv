@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { addRoute } from '../../store/routes'
 import ImageUploadComponent from '../ImageUploadComponenet';
 import { GoogleMap, useLoadScript, Marker, DistanceMatrixService } from '@react-google-maps/api';
@@ -15,7 +15,7 @@ const center = {
 function NewRoute() {
   const currUser = useSelector(state => state.session.user)
   const dispatch = useDispatch()
-  const history = useHistory()
+  const navigate = useNavigate();
   const [allowStart, setAllowStart] = useState(false)
   const [allowEnd, setAllowEnd] = useState(false)
   const [start, setStart] = useState(null)
@@ -63,7 +63,7 @@ function NewRoute() {
         if (data) {
           setErrors(data)
         }else {
-          history.push(`/`)
+          navigate(`/`)
         }
       }
     }

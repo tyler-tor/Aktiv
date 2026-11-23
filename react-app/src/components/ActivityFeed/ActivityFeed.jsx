@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from 'react-redux'
 import { getAllFriendsActivity } from '../../store/friendsActivity';
 import { getAllRoutes } from '../../store/routes';
 import { getAllWorkouts } from '../../store/workouts';
-import { NavLink } from 'react-router-dom';
+import { NavLink } from 'react-router';
 import './ActivityFeed.css';
 import { GOOGLE_MAPS_API_KEY } from '../../config';
 

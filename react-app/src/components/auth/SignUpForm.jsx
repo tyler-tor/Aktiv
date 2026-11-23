@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux'
-import { useHistory } from 'react-router-dom';
-import { Redirect } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router';
 import { signUp, authenticate } from '../../store/session';
 import { uploadImage, setProfilePicture } from '../../store/uploads';
 import ImageUploadComponent from '../ImageUploadComponenet';
@@ -18,7 +17,7 @@ const SignUpForm = () => {
   const [pictureFile, setPictureFile] = useState(null);
   const user = useSelector(state => state.session.user);
   const dispatch = useDispatch();
-  const history = useHistory('/')
+  const navigate = useNavigate();
 
   const onSignUp = async (e) => {
     e.preventDefault();
@@ -38,7 +37,7 @@ const SignUpForm = () => {
           await dispatch(authenticate());
         }
       }
-      history.push('/')
+      navigate('/')
     }
   };
 
@@ -67,7 +66,7 @@ const SignUpForm = () => {
   };
 
   if (user) {
-    return <Redirect to='/' />;
+    return <Navigate to='/' replace />;
   }
 
   return (

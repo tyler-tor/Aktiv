@@ -1,22 +1,22 @@
 import React from 'react'
 import { useDispatch } from 'react-redux'
-import { useHistory } from 'react-router-dom'
+import { useNavigate } from 'react-router';
 import { deleteRoute } from '../../store/routes'
 import './MapAdjustment.css'
 
 function DeleteMapForm({routeId, onClose}) {
   const dispatch = useDispatch()
-  const history = useHistory()
+  const navigate = useNavigate();
 
   const destroyRoute = async (e) => {
     e.preventDefault();
     const data = await dispatch(deleteRoute(routeId)).then(() => {
-      history.push('/')
+      navigate('/')
     })
     if(data) {
 
     }
-    history.push('/')
+    navigate('/')
     onClose()
   }
   return (

@@ -501,3 +501,21 @@ at the end of this file.
 - **Things to watch:**
   - In development you will see each startup request (e.g. `/api/auth/`) twice in the Network tab: that is StrictMode's double mount, by design, and does not happen in the production build.
   - react-router stays on v5 until A22; it runs on React 19 but is no longer developed.
+
+## A22 — react-router v5 -> v7
+- **Problem:** react-router 5 is no longer developed; its API (`<Switch>`, `<Redirect>`, `useHistory`, `render` props) was replaced in v6/v7, and v5 relies on React internals that newer React versions keep deprecating. `ProtectedRoute` had to wrap `<Route render={...}>` by hand.
+- **What changed:**
+  - `react-router-dom` 5.3.4 removed; **`react-router` 7.18.6** added (in v7 everything, including `BrowserRouter`, is exported from `react-router`; `react-router-dom` is only a compatibility re-export).
+  - `App.jsx`: `<Switch>` -> `<Routes>` (imported as `RouterRoutes`, because the app already has a page component named `Routes`), every route uses `element={...}`, `exact` is gone (v7 paths match exactly by default), the catch-all is `path='*'` -> `NotFound`. Redirects (`/login`, `/sign-up` when logged in) use `<Navigate to='/' replace />` (v5's `<Redirect>` also replaced the history entry).
+  - `ProtectedRoute` is now a **layout route**: `<Route element={<ProtectedRoute />}>` wraps the 8 protected pages; it renders `<Outlet />` for a logged-in user and `<Navigate to='/' replace state={{ from: location }} />` otherwise (same behaviour and `state.from` as in A14).
+  - `useHistory()` / `history.push(x)` -> `useNavigate()` / `navigate(x)` in `LogoutButton`, `SignUpForm`, `NewRoute`, `NewWorkout`, `DeleteMapForm`, `DeleteWorkoutForm`. `<Redirect to='/' />` -> `<Navigate to='/' replace />` in `LoginForm` and `SignUpForm`.
+  - `NavBar`: `<NavLink exact>` -> `<NavLink end>`. All other `NavLink`/`Link`/`useParams` uses only changed their import to `react-router`.
+- **Files:** `react-app/package.json`, `react-app/package-lock.json`, `react-app/src/App.jsx`, `react-app/src/components/auth/ProtectedRoute.jsx`, `react-app/src/components/auth/LoginForm.jsx`, `react-app/src/components/auth/SignUpForm.jsx`, `react-app/src/components/auth/LogoutButton.jsx`, `react-app/src/components/NavBar.jsx`, `react-app/src/components/NewMap/NewRoute.jsx`, `react-app/src/components/NewWorkout/NewWorkout.jsx`, `react-app/src/components/MapAdjustment/DeleteMapForm.jsx`, `react-app/src/components/WorkoutDisplay/{WorkoutDisplay,DeleteWorkoutForm}.jsx`, `react-app/src/components/{ActivityFeed/ActivityFeed,Footer,Map/MapComponent,NotFound,RouteDisplay/RouteDisplay,User,UserRoutes/Routes,UsersList}.jsx` (import only)
+- **How to verify:**
+  1. `npm ci && npm run build` -> builds.
+  2. `npm run dev`: logged out, open `/activity` -> login page at `/`; `/nope` -> "Page not found"; log in with Demo -> home; navbar links; Logout -> back to `/`; `/sign-up` while logged in -> `/`; create a workout -> lands on `/activity`; delete a route -> lands on `/`.
+  Verified: build OK; the jsdom smoke test now also clicks a navbar link and Logout, and gives **identical** results (text, final URL, API calls) for all 21 scenarios on the A20 code (router v5) and on this commit (router v7), including the redirects (`/activity` logged out -> `/`, `/sign-up` and `/login` logged in -> `/`) and the catch-all.
+- **Things to watch:**
+  - v7 `NavLink` marks `to='/'` as active only on `/` itself (v5 marked the logo link active everywhere when `exact` was missing). There is no `.active` CSS in the app, so nothing looks different.
+  - The pre-existing `/routes` and `/users` page crashes (A19) are unchanged.
+  - The app uses v7 in "declarative mode" (`<BrowserRouter>` + `<Routes>`), the smallest change. v7's data/framework modes (loaders, actions) are optional and would be a separate refactor.

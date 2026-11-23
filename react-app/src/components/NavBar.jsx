@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
-import { NavLink } from 'react-router-dom';
+import { NavLink } from 'react-router';
 import LogoutButton from './auth/LogoutButton';
 import './NavBar.css'
 
@@ -41,13 +41,13 @@ const NavBar = () => {
           {!user ? (
             <ul className={click ? 'nav-menu active' : 'nav-menu'}>
               <li className='nav-item'>
-                <NavLink to='/' exact={true}
+                <NavLink to='/' end
                   className='nav-links' onClick={closeMobileMenu}>
                   Login
                 </NavLink>
               </li>
               <li className='nav-item'>
-                <NavLink to='/sign-up' exact={true}
+                <NavLink to='/sign-up' end
                   className='nav-links' onClick={closeMobileMenu}>
                   Sign Up
                 </NavLink>
@@ -57,25 +57,25 @@ const NavBar = () => {
             <>
               <ul className={click ? 'nav-menu active' : 'nav-menu'}>
                 <li className='nav-item'>
-                  <NavLink to='/' exact={true}
+                  <NavLink to='/' end
                     className='nav-links' onClick={closeMobileMenu}>
                     Routes
                   </NavLink>
                 </li>
                 <li className='nav-item'>
-                  <NavLink to='/activity' exact={true}
+                  <NavLink to='/activity' end
                     className='nav-links' onClick={closeMobileMenu}>
                     Activity
                   </NavLink>
                 </li>
                 <li className='nav-item'>
-                  <NavLink to='/newRoute' exact={true}
+                  <NavLink to='/newRoute' end
                     className='nav-links' onClick={closeMobileMenu}>
                     + Route
                   </NavLink>
                 </li>
                 <li className='nav-item'>
-                  <NavLink to='/newWorkout' exact={true}
+                  <NavLink to='/newWorkout' end
                     className='nav-links' onClick={closeMobileMenu}>
                     + Workout
                   </NavLink>

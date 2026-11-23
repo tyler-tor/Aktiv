@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import ImageUploadComponent from '../ImageUploadComponenet';
 import { addWorkout } from '../../store/workouts';
 import './NewWorkout.css'
@@ -8,7 +8,7 @@ import './NewWorkout.css'
 function NewWorkout() {
     const currUser = useSelector(state => state.session.user);
     const dispatch = useDispatch();
-    const history = useHistory();
+    const navigate = useNavigate();
 
     const [errors, setErrors] = useState([]);
     const [title, setTitle] = useState('');
@@ -41,7 +41,7 @@ function NewWorkout() {
             if (data) {
                 setErrors(data)
             } else {
-                history.push('/activity')
+                navigate('/activity')
             }
         }
     }

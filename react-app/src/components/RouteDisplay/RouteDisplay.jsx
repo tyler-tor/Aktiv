@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { GoogleMap, useLoadScript, DirectionsService, DirectionsRenderer } from '@react-google-maps/api';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import { useSelector, useDispatch } from 'react-redux';
 import { getCurrentRoute, getAllRoutes } from '../../store/routes';
-import { NavLink } from 'react-router-dom';
+import { NavLink } from 'react-router';
 import Comments from '../Comments/Comments';
 import MapAdjustment from '../MapAdjustment/MapAdjustment';
 import './RouteDisplay.css';
