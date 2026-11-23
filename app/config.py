@@ -21,7 +21,22 @@ def check_secret_key(secret_key, flask_env):
         warnings.warn(message)
 
 
+IS_PRODUCTION = os.environ.get('FLASK_ENV') == 'production'
+
+
 class Config:
+    # Cookie hardening. Session = "who is logged in" (signed with SECRET_KEY).
+    # HttpOnly: JavaScript cannot read it (limits damage from XSS).
+    # SameSite=Lax: not sent on cross-site POST/PUT/DELETE (extra CSRF layer).
+    # Secure: only sent over HTTPS (production only; local dev is plain http).
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = 'Lax'
+    SESSION_COOKIE_SECURE = IS_PRODUCTION
+    # Same for Flask-Login's "remember me" cookie. (REMEMBER_COOKIE_SAMESITE is
+    # only honoured from Flask-Login 0.6, installed in Batch 2.)
+    REMEMBER_COOKIE_HTTPONLY = True
+    REMEMBER_COOKIE_SAMESITE = 'Lax'
+    REMEMBER_COOKIE_SECURE = IS_PRODUCTION
     SECRET_KEY = os.environ.get('SECRET_KEY')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     # SQLAlchemy 1.4 no longer supports url strings that start with 'postgres'

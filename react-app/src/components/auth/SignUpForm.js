@@ -22,21 +22,23 @@ const SignUpForm = () => {
 
   const onSignUp = async (e) => {
     e.preventDefault();
-    if (password === repeatPassword) {
-      const data = await dispatch(signUp(username, email, password, '', firstName, lastName));
-      if (data) {
-        setErrors(data)
-      }else {
-        // Uploads require a logged-in user, so the picture is uploaded only
-        // after the account exists. If it fails the default avatar is kept.
-        if (pictureFile) {
-          const result = await uploadImage(pictureFile);
-          if (result.url && await setProfilePicture(result.url)) {
-            await dispatch(authenticate());
-          }
+    if (password !== repeatPassword) {
+      setErrors(['Passwords do not match.']);
+      return;
+    }
+    const data = await dispatch(signUp(username, email, password, '', firstName, lastName));
+    if (data) {
+      setErrors(data)
+    }else {
+      // Uploads require a logged-in user, so the picture is uploaded only
+      // after the account exists. If it fails the default avatar is kept.
+      if (pictureFile) {
+        const result = await uploadImage(pictureFile);
+        if (result.url && await setProfilePicture(result.url)) {
+          await dispatch(authenticate());
         }
-        history.push('/')
       }
+      history.push('/')
     }
   };
 
@@ -136,8 +138,10 @@ const SignUpForm = () => {
               type='password'
               name='password'
               onChange={updatePassword}
-              placeholder='Password'
+              placeholder='Password (at least 8 characters)'
               value={password}
+              minLength={8}
+              required={true}
               className='suf-input'
             ></input>
           </div>

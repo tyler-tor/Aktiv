@@ -4,9 +4,13 @@ import os
 from app.forms import LoginForm
 from app.forms import SignUpForm
 from flask_login import current_user, login_user, logout_user, login_required
+from werkzeug.security import generate_password_hash, check_password_hash
 from app.s3_helpers import S3_LOCATION, UPLOAD_PREFIX
 
 auth_routes = Blueprint('auth', __name__)
+
+# Used to equalize login timing for unknown emails (see login()).
+_DUMMY_PASSWORD_HASH = generate_password_hash('not-a-real-password')
 
 
 def validation_errors_to_error_messages(validation_errors):
@@ -44,20 +48,27 @@ def login():
     Logs a user in
     """
     form = LoginForm()
-    if form.validate_on_submit():
-        # Add the user to the session, we are logged in!
-        user = User.query.filter(User.email == form.data['email']).first()
-        login_user(user)
-        user_dict = user.to_dict()
-        #getting list of friends
-        friends = user_dict['friends']
-        #query to exclude friends from user table
-        non_friends = User.query.filter(User.username.notin_([dict(friend)['username'] for friend in friends])).all()
-        #only allow users that are not the current user
-        user_dict['nonFriends'] = [user.to_dict() for user in non_friends if user.id != current_user.id]
-        user_dict['mapKey'] = os.environ.get('REACT_APP_NEXT_PUBLIC_GOOGLE_MAPS_API_KEY')
-        return user_dict
-    return {'errors': validation_errors_to_error_messages(form.errors)}, 401
+    if not form.validate_on_submit():
+        return {'errors': validation_errors_to_error_messages(form.errors)}, 401
+    user = User.query.filter(User.email == form.data['email']).first()
+    if user is None:
+        # Still run a password hash check so "unknown email" takes about as
+        # long as "wrong password" (timing would otherwise reveal accounts).
+        check_password_hash(_DUMMY_PASSWORD_HASH, form.data['password'])
+    if user is None or not user.check_password(form.data['password']):
+        # Same message for unknown email and wrong password.
+        return {'errors': ['Invalid email or password']}, 401
+    # Add the user to the session, we are logged in!
+    login_user(user)
+    user_dict = user.to_dict()
+    #getting list of friends
+    friends = user_dict['friends']
+    #query to exclude friends from user table
+    non_friends = User.query.filter(User.username.notin_([dict(friend)['username'] for friend in friends])).all()
+    #only allow users that are not the current user
+    user_dict['nonFriends'] = [user.to_dict() for user in non_friends if user.id != current_user.id]
+    user_dict['mapKey'] = os.environ.get('REACT_APP_NEXT_PUBLIC_GOOGLE_MAPS_API_KEY')
+    return user_dict
 
 
 @auth_routes.route('/logout')

@@ -3,6 +3,8 @@ autopep8==2.0.0
 boto3==1.26.16
 botocore==1.29.16
 click==7.1.2
+dnspython==2.7.0
+email-validator==2.2.0
 Flask==2.0.1
 Flask-Cors==3.0.8
 Flask-Login==0.5.0
@@ -11,6 +13,7 @@ Flask-SQLAlchemy==2.5.1
 Flask-WTF==0.15.1
 GeoAlchemy2==0.12.5
 greenlet==1.1.0
+idna==3.10
 gunicorn==20.1.0
 itsdangerous==2.0.1
 Jinja2==3.0.1

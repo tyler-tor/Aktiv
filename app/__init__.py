@@ -80,9 +80,8 @@ def inject_csrf_token(response):
     response.set_cookie(
         'csrf_token',
         generate_csrf(),
-        secure=True if os.environ.get('FLASK_ENV') == 'production' else False,
-        samesite='Strict' if os.environ.get(
-            'FLASK_ENV') == 'production' else None,
+        secure=app.config['SESSION_COOKIE_SECURE'],
+        samesite='Lax',
         # Must be readable by JavaScript so the frontend can copy it into the
         # X-CSRFToken header. (The session cookie itself stays httponly.)
         httponly=False)

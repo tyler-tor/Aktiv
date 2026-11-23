@@ -29,6 +29,7 @@ psycopg2 = "*"
 geoalchemy2 = "*"
 boto3 = "*"
 pillow = "==11.3.0"
+email-validator = "==2.2.0"
 
 [dev-packages]
 

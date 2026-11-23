@@ -1,7 +1,10 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField
-from wtforms.validators import DataRequired, Email, ValidationError
+from wtforms import StringField, PasswordField
+from wtforms.validators import DataRequired, Email, Length, Optional, ValidationError
 from app.models import User
+
+# Keep in sync with the frontend hint on the sign-up page.
+MIN_PASSWORD_LENGTH = 8
 
 
 def user_exists(form, field):
@@ -20,11 +23,14 @@ def username_exists(form, field):
         raise ValidationError('Username is already in use.')
 
 
+# Max lengths match the column sizes in app/models/user.py, so a long value
+# gets a clear validation error instead of a database error (500) on Postgres.
 class SignUpForm(FlaskForm):
     username = StringField(
-        'username', validators=[DataRequired(), username_exists])
-    email = StringField('email', validators=[DataRequired(), user_exists])
-    password = StringField('password', validators=[DataRequired()])
-    profile_picture = StringField('profile picture')
-    first_name = StringField('first name', validators=[DataRequired()])
-    last_name = StringField('last name', validators=[DataRequired()])
+        'username', validators=[DataRequired(), Length(max=40), username_exists])
+    email = StringField('email', validators=[DataRequired(), Length(max=255), Email(), user_exists])
+    password = PasswordField('password', validators=[
+        DataRequired(), Length(min=MIN_PASSWORD_LENGTH, max=255)])
+    profile_picture = StringField('profile picture', validators=[Optional(), Length(max=255)])
+    first_name = StringField('first name', validators=[DataRequired(), Length(max=100)])
+    last_name = StringField('last name', validators=[DataRequired(), Length(max=100)])

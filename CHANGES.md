@@ -11,6 +11,7 @@ changed, which files were touched, how to check it yourself, and what to keep an
 
 - **A4 (sign-up picture):** the plan adds `@login_required` to `/api/img/upload`, but the sign-up page uploaded the profile picture *before* the account existed, so that would have broken sign-up pictures. Minimal fix: the sign-up page now uploads the picture right after the account is created and saves it via a new `PUT /api/auth/profile-picture` endpoint (accepts only URLs from your bucket's `uploads/` prefix).
 - **Pipfile.lock not regenerated:** new Python packages (Pillow in A4, email-validator in A9) were added to both `requirements.txt` and `Pipfile`, but `Pipfile.lock` could not be re-locked here (no pipenv/Python 3.9). `pipenv install` will re-lock automatically, or run `pipenv lock`. A16 (later) removes the Pipfile entirely.
+- **A9 rate limiting skipped:** optional in the plan; it adds Flask-Limiter and needs shared storage across workers, so it is better done with the EC2/Caddy setup (later batch).
 
 ## Open questions for Tyler
 
@@ -178,3 +179,30 @@ changed, which files were touched, how to check it yourself, and what to keep an
   - Pre-existing bug, not changed (outside A8): `store/comments.js` calls `GET /api/workouts/<id>/comments`, which has no backend route (only POST exists) -> 405. Workout comments still display because they are embedded in the workout itself. Worth a small follow-up.
   - Flask-Login still answers unauthenticated API calls with a 302 redirect to `/api/auth/unauthorized` (which then returns 401). `fetch` follows the redirect, so the frontend sees 401 as before.
   - A50 (later) will cover these with automated tests.
+
+## A9 — Auth hardening
+- **Problem:**
+  - Login said "Email provided not found." for unknown emails and "Password was incorrect." for wrong passwords, so anyone could test which emails have accounts ("user enumeration").
+  - Forms had no length limits, but the DB columns do (route/workout `title` is `String(30)`, comment `body` is `String(255)`, ...). SQLite ignores that, but on Postgres a 31-character title is a database error -> HTTP 500.
+  - Sign-up accepted any string as an email and any password (even 1 character).
+  - Session cookie settings were left to defaults (no `SameSite`, not `Secure` in production).
+- **What changed:**
+  - **Login:** the email/password check moved from form validators into the view. Unknown email and wrong password both return **401** `{"errors": ["Invalid email or password"]}`. For an unknown email the server still runs one password-hash check so the response time does not give it away either. Password field is now a `PasswordField`.
+  - **Sign-up:** `Email()` validator (needs the `email-validator` package, now in `requirements.txt` and `Pipfile`), password at least **8** characters, `Length(max=...)` on every field matching `app/models/user.py`. The sign-up page shows the 8-character hint (`minLength`), and shows "Passwords do not match." instead of silently doing nothing.
+  - **Routes/workouts/comments forms:** `Length(max=...)` matching the columns (title 30, description 1000, travel mode/type 50, distance 500, image URL 255, comment 255) -> clean 400 with a message instead of a 500.
+  - **Cookies** (`app/config.py`): session cookie `HttpOnly`, `SameSite=Lax`, `Secure` in production; same settings for Flask-Login's remember-me cookie. The `csrf_token` cookie now uses `SameSite=Lax` and `Secure` in production too (it used to be `Strict` in prod and unset in dev).
+  - The demo account is unchanged (`demo@aa.io` / `password` - exactly 8 characters, so it still meets the new rule, which only applies to new sign-ups anyway).
+- **Files:** `app/forms/login_form.py`, `app/forms/signup_form.py`, `app/forms/route_form.py`, `app/forms/workout_form.py`, `app/forms/comment_form.py`, `app/api/auth_routes.py`, `app/config.py`, `app/__init__.py`, `requirements.txt`, `Pipfile`, `react-app/src/components/auth/SignUpForm.js`
+- **How to verify:**
+  1. Log in with `nobody@aa.io` / anything and with `demo@aa.io` / `wrong` -> both show "Invalid email or password".
+  2. Click **Demo** login -> works.
+  3. Sign up with email `not-an-email` or password `short` -> 400 with a field message.
+  4. Create a route with a 31-character title -> "title : Field cannot be longer than 30 characters."
+  5. DevTools > Application > Cookies: `session` is HttpOnly + SameSite=Lax (and Secure on the HTTPS site).
+  Verified with the Flask test client (12 checks) plus `FLASK_ENV=production` config check (`Secure` = True).
+- **Things to watch / follow-ups:**
+  - **Rate limiting not added** (the plan marks it optional; it needs a new dependency, Flask-Limiter, and a shared store like Redis for multiple workers). Recommended once the app is on EC2 behind Caddy/CloudFront.
+  - `REMEMBER_COOKIE_SAMESITE` only takes effect with Flask-Login 0.6+ (Batch 2, A17). The app doesn't use "remember me" today anyway.
+  - New dependencies: `email-validator==2.2.0`, `dnspython==2.7.0`, `idna==3.10` (versions chosen to still support Python 3.9).
+  - Demo account read-only / nightly reset is still an open question (plan question 10).
+  - `SESSION_COOKIE_SECURE` is driven by `FLASK_ENV=production` for now; A11 switches it to `APP_ENV`.
