@@ -131,3 +131,22 @@ changed, which files were touched, how to check it yourself, and what to keep an
   - `GET /api/auth/logout` is still a GET, so a cross-site page could log you out (annoying, not dangerous). Changing it to POST is a small later fix.
   - If you call the API from Postman/curl, first `GET /api/auth/` to get the cookie, then copy it into the header.
   - A50 (later) will add automated tests for this.
+
+## A7 — Fix add/remove friend logic
+- **Problem:** In `add_user_friends` the "already friends?" check **and** the code that adds the friend were both *inside* the `for friend in friends` loop. A user with zero friends never entered the loop, so the view returned `None` and Flask raised a 500 - i.e. the Friends feature crashed for every brand-new user. For other users it only compared against the *first* friend and then added the new one, so adding someone already in your list (but not first) hit the database unique constraint -> 500. You could also friend yourself. `unfriend_user` called `to_dict()` before checking the user existed (500 for a bad id) and returned 200 with an error body when the user was not a friend. The seed data had `jimmy` and `tammie` following themselves.
+- **What changed:**
+  - Rewrote both views. A helper `_is_follower(user, other)` asks the database directly whether the relationship exists.
+  - Add friend: missing user -> **404**, yourself -> **400**, already friends -> **409**, otherwise add both directions (only the ones that are missing, so half-existing friendships from old data don't crash) -> 200 with the same response shape as before.
+  - Unfriend: missing user -> **404**, not a friend -> **404**, otherwise remove both directions -> 200 (same shape as before).
+  - Errors use the `{"errors": [...]}` shape like the rest of the API.
+  - Seeds: removed the self-follows for `jimmy` and `tammie`.
+- **Files:** `app/api/user_routes.py`, `app/seeds/users.py`
+- **How to verify:**
+  1. `flask seed undo && flask seed all` (or recreate the DB).
+  2. Sign up a new user, go to Users and add the demo user as a friend -> works (used to be a 500). Adding again -> 409.
+  3. `POST /api/users/<your own id>/friends` -> 400; `POST /api/users/9999/friends` -> 404.
+  4. Remove the friend -> 200; remove again -> 404; demo's friend list no longer shows the new user.
+  Verified with the Flask test client (16 checks).
+- **Things to watch / follow-ups:**
+  - Friendships are still stored as two `follows` rows ("mutual follow"). The table gets a proper composite primary key in A15.
+  - The responses still embed full `to_dict()` users (slow); A24/A25 slim them down.

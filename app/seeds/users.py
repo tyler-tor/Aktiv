@@ -23,8 +23,8 @@ def seed_users():
     demo.followers = [marnie, bobbie, jimmy]
     marnie.followers = [demo, bobbie, tammie]
     bobbie.followers = [marnie, demo, tammie]
-    jimmy.followers = [marnie, demo, jimmy]
-    tammie.followers = [marnie, demo, tammie]
+    jimmy.followers = [marnie, demo]
+    tammie.followers = [marnie, demo]
 
     db.session.add(demo)
     db.session.add(marnie)

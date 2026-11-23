@@ -68,21 +68,32 @@ def user_friends(id):
     return {'errors': 'This user does not exist!'}
 
 
+def _is_follower(user, other):
+    """True if `other` is in `user`'s followers ("friends") list."""
+    return user.followers.filter(User.id == other.id).first() is not None
+
+
 # adding friend to current user friends list
 @user_routes.route('/<int:id>/friends', methods=['POST'])
 @login_required
 def add_user_friends(id):
     curr_user = User.query.get(current_user.id)
     user = User.query.get(id)
-    if curr_user and user:
-        curr_user_friends = curr_user.to_dict()['friends']
-        for friend in curr_user_friends:
-            if friend['userId'] == user.id:
-                return {'error': 'This user is already your friend!'}
-            curr_user.followers.append(user)
-            user.followers.append(curr_user)
-            db.session.commit()
-            return {'friend': user.to_dict(), 'currUser': curr_user.to_dict()}
+    if user is None:
+        return {'errors': ['This user does not exist!']}, 404
+    if user.id == curr_user.id:
+        return {'errors': ['You cannot add yourself as a friend!']}, 400
+    if _is_follower(curr_user, user):
+        return {'errors': ['This user is already your friend!']}, 409
+
+    # A friendship is stored as two rows in `follows` (one per direction).
+    # Only add the directions that are missing, so a half-existing friendship
+    # (possible in old seed data) does not hit the unique constraint.
+    curr_user.followers.append(user)
+    if not _is_follower(user, curr_user):
+        user.followers.append(curr_user)
+    db.session.commit()
+    return {'friend': user.to_dict(), 'currUser': curr_user.to_dict()}
 
 
 # unfriending a user
@@ -91,12 +102,13 @@ def add_user_friends(id):
 def unfriend_user(id):
     curr_user = User.query.get(current_user.id)
     user = User.query.get(id)
-    friends = curr_user.to_dict()['friends']
-    if curr_user and user:
-        for friend in friends:
-            if friend['userId'] == user.id:
-                curr_user.followers.remove(user)
-                user.followers.remove(curr_user)
-                db.session.commit()
-                return {'unFriended': user.to_dict(), 'currUser': curr_user.to_dict()['friends']}
-        return {'error': 'user is not a friend of current user!'}
+    if user is None:
+        return {'errors': ['This user does not exist!']}, 404
+    if not _is_follower(curr_user, user):
+        return {'errors': ['user is not a friend of current user!']}, 404
+
+    curr_user.followers.remove(user)
+    if _is_follower(user, curr_user):
+        user.followers.remove(curr_user)
+    db.session.commit()
+    return {'unFriended': user.to_dict(), 'currUser': curr_user.to_dict()['friends']}
