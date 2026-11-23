@@ -4,6 +4,7 @@ import os
 from app.forms import LoginForm
 from app.forms import SignUpForm
 from flask_login import current_user, login_user, logout_user, login_required
+from app.s3_helpers import S3_LOCATION, UPLOAD_PREFIX
 
 auth_routes = Blueprint('auth', __name__)
 
@@ -84,10 +85,13 @@ def sign_up():
             username=form.data['username'],
             email=form.data['email'],
             password=form.data['password'],
-            profile_picture=form.data['profile_picture'],
             first_name=form.data['first_name'],
             last_name=form.data['last_name']
         )
+        # Only set a picture if one was given; otherwise the column default
+        # (placeholder avatar) is used instead of an empty string.
+        if form.data['profile_picture']:
+            user.profile_picture = form.data['profile_picture']
         # print('user------', user)
         db.session.add(user)
         db.session.commit()
@@ -96,6 +100,24 @@ def sign_up():
         user_dict['mapKey'] = os.environ.get('REACT_APP_NEXT_PUBLIC_GOOGLE_MAPS_API_KEY')
         return user_dict
     return {'errors': validation_errors_to_error_messages(form.errors)}, 401
+
+
+@auth_routes.route('/profile-picture', methods=['PUT'])
+@login_required
+def set_profile_picture():
+    """
+    Sets the current user's profile picture. Only accepts a URL that was
+    returned by /api/img/upload (our bucket, uploads/ prefix). Used by the
+    sign-up page, which uploads the picture right after the account exists
+    (uploads require login).
+    """
+    data = request.get_json(silent=True) or {}
+    url = data.get('profile_picture') or ''
+    if not isinstance(url, str) or len(url) > 255 or not url.startswith(S3_LOCATION + UPLOAD_PREFIX):
+        return {'errors': ['profile_picture must be an image uploaded through /api/img/upload']}, 400
+    current_user.profile_picture = url
+    db.session.commit()
+    return {'profilePicture': url}
 
 
 @auth_routes.route('/unauthorized')

@@ -9,7 +9,8 @@ changed, which files were touched, how to check it yourself, and what to keep an
 
 ## Deviations from plan
 
-_None yet._
+- **A4 (sign-up picture):** the plan adds `@login_required` to `/api/img/upload`, but the sign-up page uploaded the profile picture *before* the account existed, so that would have broken sign-up pictures. Minimal fix: the sign-up page now uploads the picture right after the account is created and saves it via a new `PUT /api/auth/profile-picture` endpoint (accepts only URLs from your bucket's `uploads/` prefix).
+- **Pipfile.lock not regenerated:** new Python packages (Pillow in A4, email-validator in A9) were added to both `requirements.txt` and `Pipfile`, but `Pipfile.lock` could not be re-locked here (no pipenv/Python 3.9). `pipenv install` will re-lock automatically, or run `pipenv lock`. A16 (later) removes the Pipfile entirely.
 
 ## Open questions for Tyler
 
@@ -67,3 +68,25 @@ _None yet._
   - Delete endpoints already checked ownership, but returned 200 with an error body when it failed; A8 fixes their status codes.
   - The frontend did not show these errors (missing `await` on `response.json()`); fixed in A8.
   - A50 (later batch) will turn these manual checks into automated tests.
+
+## A4 — Secure the image upload endpoint
+- **Problem:** `POST /api/img/upload` had no `@login_required`, no size limit and accepted PDFs. Anyone on the internet could script uploads of unlimited, arbitrarily large files into your S3 bucket at your cost. The type check only looked at the filename extension (`evil.html` renamed to `evil.jpg` passed) and stored the browser-supplied `Content-Type`, so a file could be served from your bucket as HTML. `get_unique_filename()` built `"<uuid>,<ext>"` with a **comma**, so files were stored as `abc123,jpg` (no real extension). URLs were returned as `http://`. Upload failures were silent in the UI.
+- **What changed:**
+  - `@login_required` on the endpoint (anonymous requests get the usual redirect to `/api/auth/unauthorized` -> 401).
+  - `MAX_CONTENT_LENGTH = 5 MB` in `app/config.py`; bigger requests get a JSON **413** `{"errors": "File is too large (max 5 MB)"}` (new error handler in `app/__init__.py`).
+  - Allowed types are png, jpg/jpeg, gif, webp (pdf removed). The bytes are opened with **Pillow** and `Image.verify()`; the S3 object's extension and `Content-Type` come from what Pillow detected, not from the user.
+  - Files are stored as `uploads/<uuid>.<ext>` (dot fixed, `uploads/` prefix) and the API returns an `https://` URL.
+  - Frontend: new `react-app/src/store/uploads.js` (`uploadImage`, `checkImageFile`, `setProfilePicture`) checks type/size before uploading and turns server errors into a readable message; `ImageUploadComponent` now shows that message.
+  - **Sign-up picture** (see Deviations): because uploads now need a login, the sign-up page only *selects* the picture; right after the account is created (user is now logged in) it uploads it and calls a new small endpoint `PUT /api/auth/profile-picture`, which only accepts URLs from your bucket's `uploads/` prefix. Also fixed: signing up without a picture stored an empty string instead of the default avatar.
+- **Files:** `app/api/img_routes.py`, `app/s3_helpers.py`, `app/config.py`, `app/__init__.py`, `app/api/auth_routes.py`, `requirements.txt`, `Pipfile` (Pillow), `react-app/src/store/uploads.js` (new), `react-app/src/components/ImageUploadComponenet/ImageUploadComponent.js`, `react-app/src/components/auth/SignUpForm.js`
+- **How to verify:** (S3 was mocked in tests; with real credentials try it in the browser)
+  1. Logged out: `curl -i -F image=@photo.png http://localhost:5000/api/img/upload` -> 302 to `/api/auth/unauthorized` (401).
+  2. Logged in, upload a `.pdf` -> 400; upload a text file renamed to `.jpg` -> 400 "file is not a valid image"; upload a >5 MB file -> 413 and the UI shows "Image is too large".
+  3. Upload a real image -> 200 with a URL like `https://<bucket>.s3.amazonaws.com/uploads/3f2a....png`.
+  4. Sign up with a picture -> after redirect your avatar is the uploaded image; sign up without one -> default avatar.
+  Verified with the Flask test client (11 checks, S3 call mocked).
+- **Things to watch / follow-ups:**
+  - Uploads still use `ACL: public-read` and access keys; **A5** (not in this batch) moves to an IAM role, no ACLs, and lazy boto3 client. A fresh S3 bucket with ACLs disabled will reject these uploads until A5.
+  - Pillow pinned to 11.3.0 because it still supports Python 3.9 (the Pipfile's version). `Pipfile.lock` was not regenerated - run `pipenv lock` (or rely on `requirements.txt`; A16 removes the Pipfile).
+  - Werkzeug's dev server sometimes resets the connection instead of sending the 413 for very large bodies; the frontend checks size first so users still see a clear message.
+  - Optional later: resize images on upload (A30).

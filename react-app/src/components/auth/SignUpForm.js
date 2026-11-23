@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux'
 import { useHistory } from 'react-router-dom';
 import { Redirect } from 'react-router-dom';
-import { signUp } from '../../store/session';
+import { signUp, authenticate } from '../../store/session';
+import { uploadImage, setProfilePicture } from '../../store/uploads';
 import ImageUploadComponent from '../ImageUploadComponenet';
 import './SignUpForm.css'
 
@@ -14,7 +15,7 @@ const SignUpForm = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [repeatPassword, setRepeatPassword] = useState('');
-  const [url, setUrl] = useState('');
+  const [pictureFile, setPictureFile] = useState(null);
   const user = useSelector(state => state.session.user);
   const dispatch = useDispatch();
   const history = useHistory('/')
@@ -22,10 +23,18 @@ const SignUpForm = () => {
   const onSignUp = async (e) => {
     e.preventDefault();
     if (password === repeatPassword) {
-      const data = await dispatch(signUp(username, email, password, url, firstName, lastName));
+      const data = await dispatch(signUp(username, email, password, '', firstName, lastName));
       if (data) {
         setErrors(data)
       }else {
+        // Uploads require a logged-in user, so the picture is uploaded only
+        // after the account exists. If it fails the default avatar is kept.
+        if (pictureFile) {
+          const result = await uploadImage(pictureFile);
+          if (result.url && await setProfilePicture(result.url)) {
+            await dispatch(authenticate());
+          }
+        }
         history.push('/')
       }
     }
@@ -68,7 +77,7 @@ const SignUpForm = () => {
       <p className='login-logo-text'>Adventure awaits, signup and join today!</p>
         <div className='suf-item-container'>
           <label className='suf-label'>Profile Picture <> </></label>
-          <ImageUploadComponent setUrl={setUrl} />
+          <ImageUploadComponent onFileSelected={setPictureFile} />
         </div>
         <form onSubmit={onSignUp}
           className='signup-form'>

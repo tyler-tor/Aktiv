@@ -31,3 +31,5 @@ class Config:
     SQLALCHEMY_DATABASE_URI = os.environ.get(
         'DATABASE_URL').replace('postgres://', 'postgresql://')
     SQLALCHEMY_ECHO = True
+    # Reject request bodies (e.g. image uploads) bigger than 5 MB with HTTP 413.
+    MAX_CONTENT_LENGTH = 5 * 1024 * 1024

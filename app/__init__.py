@@ -112,6 +112,12 @@ def react_root(path):
 #                     for rule in app.url_map.iter_rules() if rule.endpoint != 'static' }
 #     return route_list
 
+@app.errorhandler(413)
+def request_too_large(e):
+    max_mb = app.config['MAX_CONTENT_LENGTH'] // (1024 * 1024)
+    return {'errors': f'File is too large (max {max_mb} MB)'}, 413
+
+
 @app.errorhandler(404)
 def not_found(e):
   return app.send_static_file('index.html')
