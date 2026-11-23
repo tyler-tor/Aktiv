@@ -35,3 +35,17 @@ _None yet._
   - Rotating the key logs out every existing session (old cookies no longer verify). That is expected.
   - If the old key was ever used on a live deployment (Render/Heroku), set a new one there too.
   - A11 later renames `FLASK_ENV` to `APP_ENV`; the production check follows that change. A45 (later batch) moves production secrets into AWS SSM Parameter Store.
+
+## A2 — Stop tracking `app/dev.db`
+- **Problem:** The SQLite development database `app/dev.db` was committed. It contains the seeded users and their password hashes, causes merge conflicts whenever two people (or two branches) touch data, and hides "migration drift" (the committed DB can disagree with what the migrations would build).
+- **What changed:** `git rm --cached app/dev.db` removes the file from git's index **only** - your local copy is still on disk and keeps working. `.gitignore` now ignores `*.db` and `*.sqlite3` so it cannot be re-added.
+- **Files:** `app/dev.db` (untracked, not deleted), `.gitignore`
+- **How to verify:**
+  1. `ls app/dev.db` -> file still exists locally.
+  2. `git ls-files app/dev.db` -> prints nothing (no longer tracked).
+  3. `git check-ignore -v app/dev.db` -> shows the `*.db` rule.
+  4. Fresh database from scratch: `rm app/dev.db; flask db upgrade; flask seed all`.
+- **Things to watch / follow-ups:**
+  - The file still exists in old commits (history not rewritten). It only holds seed data with the well-known demo password, so that is low risk.
+  - Anyone who pulls this branch will see `app/dev.db` **deleted** from their working copy when git applies the removal. They just recreate it with `flask db upgrade && flask seed all`.
+  - A38 (later batch) moves local development to Postgres in Docker.

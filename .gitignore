@@ -8,3 +8,6 @@ __pycache__/
 # Local env files hold secrets; only the example is committed
 .env.*
 !.env.example
+# Local databases (SQLite) are never committed
+*.db
+*.sqlite3
