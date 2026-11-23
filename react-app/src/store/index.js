@@ -7,7 +7,6 @@ import friendsReducer from './friends';
 import workoutReducer from './workouts';
 import routesReducer from './routes';
 import friendsActivityReducer from './friendsActivity';
-import currentRouteReducer from './currentRoute';
 
 const rootReducer = combineReducers({
   session,
@@ -16,8 +15,7 @@ const rootReducer = combineReducers({
   friends: friendsReducer,
   workouts: workoutReducer,
   routes: routesReducer,
-  friendsActivity: friendsActivityReducer,
-  currentRoute: currentRouteReducer
+  friendsActivity: friendsActivityReducer
 });
 
 

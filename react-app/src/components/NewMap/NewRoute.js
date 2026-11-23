@@ -68,9 +68,6 @@ function NewRoute() {
       }
     }
   }
-  // console.log('distance', distance)
-  // console.log('start', start)
-  // console.log('end', end)
 
   const handleMarkerSet = (e) => {
     if (allowStart === true) {
@@ -112,7 +109,6 @@ function NewRoute() {
         <div className='nrf-map'>
           {isLoaded ?
             <>
-              <script async defer src={`https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&callback=initMap`}></script>
               <div id='map'>
                 <GoogleMap
                   zoom={4}

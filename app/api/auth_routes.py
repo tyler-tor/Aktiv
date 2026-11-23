@@ -83,7 +83,6 @@ def sign_up():
     Creates a new user and logs them in
     """
     form = SignUpForm()
-    # print('formData-------', form.data)
     if form.validate_on_submit():
         user = User(
             username=form.data['username'],
@@ -96,7 +95,6 @@ def sign_up():
         # (placeholder avatar) is used instead of an empty string.
         if form.data['profile_picture']:
             user.profile_picture = form.data['profile_picture']
-        # print('user------', user)
         db.session.add(user)
         db.session.commit()
         login_user(user)

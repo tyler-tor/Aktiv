@@ -108,17 +108,6 @@ def react_root(path):
 
 
 
-# @app.route("/api/docs")
-# def api_help():
-#     """
-#     Returns all API routes and their doc strings
-#     """
-#     acceptable_methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
-#     route_list = { rule.rule: [[ method for method in rule.methods if method in acceptable_methods ],
-#                     app.view_functions[rule.endpoint].__doc__ ]
-#                     for rule in app.url_map.iter_rules() if rule.endpoint != 'static' }
-#     return route_list
-
 @app.errorhandler(413)
 def request_too_large(e):
     max_mb = app.config['MAX_CONTENT_LENGTH'] // (1024 * 1024)

@@ -21,9 +21,6 @@ def friend_activity():
             workouts = Workout.query.filter(Workout.user_id == friends[i]['userId']).order_by(Workout.created_at.desc()).all()
             [workout_list.append(workout.to_dict()) for workout in workouts]
             [route_list.append(route.to_dict()) for route in routes]
-        # print('workouts', workout_list)
-        # print('routes', route_list)
         act_dict = {'routes': route_list, 'workouts': workout_list}
-        # print('act_dict--------------', act_dict)
         return act_dict
     return {'errors': 'This user does not exist!'}

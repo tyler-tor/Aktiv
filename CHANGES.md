@@ -272,3 +272,21 @@ changed, which files were touched, how to check it yourself, and what to keep an
 - **Things to watch / follow-ups:**
   - `ActivityFeed.js` still calls the Directions **web service** from the browser with this key. Google generally blocks that (CORS) and a referrer-restricted key is rejected by web-service APIs, so feed thumbnails may not load - that is the existing behaviour, fixed properly by A28 (server computes polylines with the server key).
   - Changing the key requires a rebuild of the frontend (it's baked in).
+
+## A13 — Remove dead code and unused packages
+- **Problem:** Leftovers from development made the code harder to read and the install heavier: backend test components that were never routed, commented-out routes and `print`/`console.log` lines, a `store/currentRoute.js` file that was *entirely* commented out (so its reducer was `undefined`), raw `<script src="https://maps.googleapis.com/...&callback=initMap">` tags inside JSX in 4 map components (React does not execute script tags rendered this way, `useLoadScript` already loads Maps, and they risked double-loading), `require('dotenv').config()` in the browser entry point (dotenv is Node-only and does nothing in a browser), 7 npm packages nothing imports, and Python packages that are not used at runtime.
+- **What changed:**
+  - Deleted `react-app/src/components/BackendTestComponents/` (4 files) and `react-app/src/store/currentRoute.js` (and its entry in `store/index.js`).
+  - Removed the 4 raw Maps `<script>` tags, `require('dotenv').config()`, commented-out routes/imports in `App.js`, commented `console.log` lines in `NewRoute.js`, commented `print(...)` lines in Python, and the commented duplicate of `/api/docs` in `app/__init__.py`.
+  - npm: removed `google-maps`, `google-map-react`, `@googlemaps/react-wrapper`, `static-google-map`, `dotenv`, `dotenv-webpack`, `http-proxy-middleware` (each grep-checked: no imports in `src/`; no `setupProxy.js` exists). `package-lock.json` updated with `npm uninstall --package-lock-only` (still lockfile v2).
+  - Python: removed `GeoAlchemy2` (never imported) and its only dependents `packaging`/`pyparsing`; moved `autopep8`, `pycodestyle`, `tomli` to a new `requirements-dev.txt` (Pipfile: geoalchemy2 removed, autopep8 under `[dev-packages]`).
+- **Files:** `react-app/src/components/BackendTestComponents/*` (deleted), `react-app/src/store/currentRoute.js` (deleted), `react-app/src/store/index.js`, `react-app/src/App.js`, `react-app/src/index.js`, `react-app/src/components/{Map/MapComponent,NewMap/NewRoute,RouteDisplay/RouteDisplay,MapAdjustment/EditMapForm}.js`, `react-app/package.json`, `react-app/package-lock.json`, `app/__init__.py`, `app/api/auth_routes.py`, `app/api/me_routes.py`, `requirements.txt`, `requirements-dev.txt` (new), `Pipfile`
+- **How to verify:**
+  1. `cd react-app && npm ci && npm run build` -> "Compiled with warnings" (the warnings are pre-existing hook-dependency lint warnings) and a `build/` folder. On Node 17+ CRA 4 needs `NODE_OPTIONS=--openssl-legacy-provider` (pre-existing; fixed by Vite in A19).
+  2. `pip install -r requirements.txt` in a fresh venv, then `flask db upgrade && flask seed all && flask run` -> app works without GeoAlchemy2.
+  3. `grep -rn "<script" react-app/src` -> nothing.
+  Verified: `npm ci` + `npm run build` succeeded in a copy of `react-app` (Node 22, with the OpenSSL flag); backend test scripts still pass.
+- **Things to watch / follow-ups:**
+  - Other dependencies that look unused but were **not** in the plan's list, so left alone: `react-icons` and `@types/google.maps` (no imports in `src/`). Safe to remove later.
+  - `redux-logger` is still used in development (`store/index.js`).
+  - `npm install` prints peer-dependency warnings from react-router 5 / CRA 4; these go away with the Batch 2 upgrades.

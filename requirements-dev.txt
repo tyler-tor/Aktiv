@@ -1,0 +1,5 @@
+# Development-only tools (not needed to run the app).
+# Install with: pip install -r requirements.txt -r requirements-dev.txt
+autopep8==2.0.0
+pycodestyle==2.10.0
+tomli==2.0.1

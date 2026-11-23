@@ -1,5 +1,4 @@
 alembic==1.6.5
-autopep8==2.0.0
 boto3==1.26.16
 botocore==1.29.16
 click==7.1.2
@@ -10,7 +9,6 @@ Flask-Login==0.5.0
 Flask-Migrate==3.0.1
 Flask-SQLAlchemy==2.5.1
 Flask-WTF==0.15.1
-GeoAlchemy2==0.12.5
 greenlet==1.1.0
 idna==3.10
 gunicorn==20.1.0
@@ -19,18 +17,14 @@ Jinja2==3.0.1
 jmespath==1.0.1
 Mako==1.1.4
 MarkupSafe==2.0.1
-packaging==21.3
 Pillow==11.3.0
 psycopg2==2.9.5
-pycodestyle==2.10.0
-pyparsing==3.0.9
 python-dateutil==2.8.1
 python-dotenv==0.14.0
 python-editor==1.0.4
 s3transfer==0.6.0
 six==1.15.0
 SQLAlchemy==1.4.19
-tomli==2.0.1
 urllib3==1.26.13
 Werkzeug==2.0.1
 WTForms==2.3.3
