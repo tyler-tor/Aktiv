@@ -1,2 +1,4 @@
 FLASK_APP=app
-FLASK_ENV=development
+# Debugger + auto-reload for `flask run` (replaces FLASK_ENV=development,
+# removed in Flask 2.3). The app environment itself is APP_ENV in .env.
+FLASK_DEBUG=1

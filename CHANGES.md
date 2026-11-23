@@ -17,6 +17,7 @@ changed, which files were touched, how to check it yourself, and what to keep an
 
 - **S3 (A5):** Is there a live deployment still using `S3_KEY`/`S3_SECRET`? Those env vars are no longer read; set `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` (or an IAM role) and add the `uploads/*` bucket policy described in A5, or uploads will fail / be private.
 - **Workout comments GET (found during A8):** the frontend calls `GET /api/workouts/<id>/comments` but the backend only has POST on that URL (405). Add the GET endpoint, or remove the unused frontend call? (Not changed - outside A1-A15.)
+- **APP_ENV (A11):** where is the app currently deployed (Render?) and does it set `FLASK_ENV=production`? It keeps working via the fallback, but please add `APP_ENV=production` there.
 
 ## A1 — Rotate and remove the committed `SECRET_KEY`
 - **Problem:** `.env.example` contained a real-looking 68-character `SECRET_KEY`. Flask uses this key to sign the session cookie (the cookie that says "this browser is logged in as user 3") and the CSRF token. Anyone who copied the example file to `.env` (or deployed with it) was using a key that is public on GitHub, so an attacker could forge a session cookie and log in as any user, including you. The value is also in git history, so it must be treated as burned forever.
@@ -218,3 +219,32 @@ changed, which files were touched, how to check it yourself, and what to keep an
   Verified: smoke tests pass and no CORS header is returned for a foreign `Origin`.
 - **Things to watch / follow-ups:**
   - The planned AWS setup (A42) puts CloudFront in front of both the frontend and `/api/*` on one domain, so CORS stays unnecessary. If you ever host the frontend on a different domain than the API, re-add Flask-Cors restricted to that exact origin with `supports_credentials=True` (and `SameSite=None; Secure` cookies).
+
+## A11 — Configuration cleanup
+- **Problem:**
+  - `SQLALCHEMY_ECHO = True` was on **everywhere**, including production: every SQL statement was written to the logs (slow, noisy, and it can log user data).
+  - `os.environ.get('DATABASE_URL').replace(...)` crashed with a confusing `AttributeError: 'NoneType' object has no attribute 'replace'` when `DATABASE_URL` was missing.
+  - The app used `FLASK_ENV` to decide "am I in production?". Flask 2.3 removed `FLASK_ENV`, so that would break in the Batch 2 upgrade.
+  - A Heroku-era `https_redirect` hook trusted the `X-Forwarded-Proto` header; HTTPS redirects belong to the proxy in front of the app.
+  - `/api/docs` (a list of every API route) was public in production.
+  - No protection against dropped database connections (after a Postgres restart the first requests failed).
+- **What changed:**
+  - New `APP_ENV` variable (`development` | `testing` | `production`), read by `get_app_env()` in `app/config.py`. `FLASK_ENV` is still accepted as a **fallback** so an existing deployment that sets `FLASK_ENV=production` keeps working. Everything that used `FLASK_ENV` now uses it: models/seeds (Postgres schema), migrations, secret-key check, cookie `Secure` flag.
+  - `Config` is split into `DevelopmentConfig` (SQL echo on by default, turn off with `SQLALCHEMY_ECHO=0`), `TestingConfig` (`TESTING=True`, in-memory SQLite unless `DATABASE_URL` is set) and `ProductionConfig` (echo off, `Secure` cookies, `/api/docs` off). `get_config()` picks one; an unknown `APP_ENV` fails fast with a clear message.
+  - Missing `DATABASE_URL` -> `RuntimeError: DATABASE_URL is not set. Add it to .env, e.g. ...`. The `postgres://` -> `postgresql://` rewrite is kept (only the prefix).
+  - `SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}`.
+  - Removed `https_redirect`.
+  - `/api/docs` returns 404 in production unless `ENABLE_API_DOCS=1`.
+  - `.flaskenv`: `FLASK_ENV=development` -> `FLASK_DEBUG=1` (debugger/reloader for `flask run`). `.env.example`: `APP_ENV=development` and a commented `SQLALCHEMY_ECHO=0`.
+- **Files:** `app/config.py`, `app/__init__.py`, `app/models/db.py`, `migrations/env.py`, `migrations/versions/0a0f8863271d_.py` (env lookup only), `.flaskenv`, `.env.example`
+- **How to verify:**
+  1. In your `.env`, replace `FLASK_ENV=development` with `APP_ENV=development`; `flask run` works and prints SQL (set `SQLALCHEMY_ECHO=0` to silence it).
+  2. Remove `DATABASE_URL` from `.env` -> startup fails with the clear `DATABASE_URL is not set` message.
+  3. `APP_ENV=production` (with a real `SECRET_KEY`): `GET /api/docs` -> 404, no SQL in logs, session cookie has `Secure`.
+  4. `APP_ENV=bogus flask run` -> "Unknown APP_ENV 'bogus'".
+  Verified: all earlier test scripts still pass under the new config; the production, testing, fallback, missing-URL and unknown-env cases were checked with Python one-liners.
+- **Things to watch / follow-ups:**
+  - **On any live deployment, set `APP_ENV=production`** (FLASK_ENV still works for now, but the fallback can be removed after Batch 2).
+  - `.flaskenv` has `FLASK_DEBUG=1`: never use `flask run` in production (use gunicorn, which ignores `.flaskenv`).
+  - A16 (later) turns this into an app factory `create_app(config_name)` that uses these config classes directly.
+  - The `react_root` favicon branch calls `app.send_from_directory`, which doesn't exist; left for A17 as planned.

@@ -13,7 +13,7 @@ from .api.me_routes import me_routes
 from .api.img_routes import img_routes
 from .api.map_routes import map_routes
 from .seeds import seed_commands
-from .config import Config, check_secret_key
+from .config import APP_ENV, get_config, check_secret_key
 from app.models.db import db, environment, SCHEMA
 
 app = Flask(__name__, static_folder='../react-app/build', static_url_path='/')
@@ -31,8 +31,12 @@ def load_user(id):
 # Tell flask about our seed commands
 app.cli.add_command(seed_commands)
 
-app.config.from_object(Config)
-check_secret_key(app.config.get('SECRET_KEY'), os.environ.get('FLASK_ENV'))
+app.config.from_object(get_config(APP_ENV))
+check_secret_key(app.config.get('SECRET_KEY'), APP_ENV)
+if not app.config.get('SQLALCHEMY_DATABASE_URI'):
+    raise RuntimeError(
+        'DATABASE_URL is not set. Add it to .env, e.g. DATABASE_URL=sqlite:///dev.db '
+        '(local) or postgresql://user:password@host:5432/dbname')
 app.register_blueprint(user_routes, url_prefix='/api/users')
 app.register_blueprint(auth_routes, url_prefix='/api/auth')
 app.register_blueprint(route_routes, url_prefix='/api/routes')
@@ -61,18 +65,8 @@ def handle_csrf_error(e):
 # Flask in development), so browsers never make cross-origin API calls.
 
 
-# Since we are deploying with Docker and Flask,
-# we won't be using a buildpack when we deploy to Heroku.
-# Therefore, we need to make sure that in production any
-# request made over http is redirected to https.
-# Well.........
-@app.before_request
-def https_redirect():
-    if os.environ.get('FLASK_ENV') == 'production':
-        if request.headers.get('X-Forwarded-Proto') == 'http':
-            url = request.url.replace('http://', 'https://', 1)
-            code = 301
-            return redirect(url, code=code)
+# (The Heroku-era https_redirect hook was removed: HTTPS redirects are done
+# by the proxy in front of the app - Render/CloudFront/Caddy.)
 
 
 @app.after_request
@@ -93,6 +87,8 @@ def api_help():
     """
     Returns all API routes and their doc strings
     """
+    if not app.config['ENABLE_API_DOCS']:
+        return {'errors': ['Not found']}, 404
     acceptable_methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
     route_list = { rule.rule: [[ method for method in rule.methods if method in acceptable_methods ],
                     app.view_functions[rule.endpoint].__doc__ ]

@@ -1,7 +1,10 @@
 from flask_sqlalchemy import SQLAlchemy
 
 import os
-environment = os.getenv("FLASK_ENV")
+from app.config import get_app_env
+
+# "production" makes the models use the Postgres SCHEMA (Render setup).
+environment = get_app_env()
 SCHEMA = os.environ.get("SCHEMA")
 
 
