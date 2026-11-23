@@ -14,9 +14,7 @@ changed, which files were touched, how to check it yourself, and what to keep an
 
 ## Open questions for Tyler
 
-_None yet._
-
----
+- **S3 (A5):** Is there a live deployment still using `S3_KEY`/`S3_SECRET`? Those env vars are no longer read; set `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` (or an IAM role) and add the `uploads/*` bucket policy described in A5, or uploads will fail / be private.
 
 ## A1 — Rotate and remove the committed `SECRET_KEY`
 - **Problem:** `.env.example` contained a real-looking 68-character `SECRET_KEY`. Flask uses this key to sign the session cookie (the cookie that says "this browser is logged in as user 3") and the CSRF token. Anyone who copied the example file to `.env` (or deployed with it) was using a key that is public on GitHub, so an attacker could forge a session cookie and log in as any user, including you. The value is also in git history, so it must be treated as burned forever.
@@ -90,3 +88,25 @@ _None yet._
   - Pillow pinned to 11.3.0 because it still supports Python 3.9 (the Pipfile's version). `Pipfile.lock` was not regenerated - run `pipenv lock` (or rely on `requirements.txt`; A16 removes the Pipfile).
   - Werkzeug's dev server sometimes resets the connection instead of sending the 413 for very large bodies; the frontend checks size first so users still see a clear message.
   - Optional later: resize images on upload (A30).
+
+## A5 — Modern S3 access: IAM role, no ACLs
+- **Problem:** The app created its boto3 client at import time with long-lived access keys from `S3_KEY`/`S3_SECRET` in `.env`. Long-lived keys sitting in a file on a server are the most common way AWS accounts get compromised. Every upload also sent `ACL: public-read`; S3 buckets created since April 2023 have ACLs disabled ("Bucket owner enforced"), and uploads that send an ACL **fail** on them.
+- **What changed:**
+  - `app/s3_helpers.py` now builds the client lazily in `get_s3_client()` on first upload, with **no explicit keys**. boto3 then uses its default credential chain: the EC2 instance's IAM role in production; locally your `~/.aws` profile (`aws configure` or `aws sso login`) or the standard `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`/`AWS_PROFILE` env vars. `AWS_REGION` sets the region.
+  - The `ACL` argument is gone. Public read access for `uploads/*` must come from a bucket policy (below) or CloudFront.
+  - Optional `S3_PUBLIC_URL` env var overrides the public base URL (for a CloudFront domain later); default stays `https://<bucket>.s3.amazonaws.com/`.
+  - `.env.example`: `S3_KEY`/`S3_SECRET` removed, `AWS_REGION` and commented `S3_PUBLIC_URL` added.
+- **Files:** `app/s3_helpers.py`, `.env.example`
+- **How to verify:**
+  1. Locally: `aws configure` (or `aws sso login --profile <p>` and `export AWS_PROFILE=<p>`), set `S3_BUCKET` and `AWS_REGION` in `.env`, start the app, upload an image while logged in -> URL works.
+  2. In code/tests: the client is `None` until the first upload, and the upload call contains no `ACL` (verified with a fake client in the Flask test client).
+  3. On the bucket (if it has ACLs disabled), add this bucket policy so uploaded images are viewable but nothing else is public:
+     ```json
+     {"Version":"2012-10-17","Statement":[{"Sid":"PublicReadUploads","Effect":"Allow","Principal":"*","Action":"s3:GetObject","Resource":"arn:aws:s3:::<bucket>/uploads/*"}]}
+     ```
+     (The bucket's "Block public access" setting for *bucket policies* must allow this; or use CloudFront + OAC instead - A42/A44.)
+- **Things to watch / follow-ups:**
+  - **Action needed on any existing deployment:** rename `S3_KEY`/`S3_SECRET` to `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` (temporary, until it runs on EC2 with an IAM role), or uploads will fail with "Unable to locate credentials". Better: delete those keys in IAM once the role is in place.
+  - Without the bucket policy, new uploads are **private** (the URL returns 403), because they no longer carry `public-read`.
+  - The IAM role / instance profile and bucket are created by Terraform in A43/A44 (later batch). Minimal IAM permission for the app: `s3:PutObject` on `arn:aws:s3:::<bucket>/uploads/*`.
+  - The seed data's old images point at the `capstone-strava-clone-aktiv` bucket (open question 4 in the plan).

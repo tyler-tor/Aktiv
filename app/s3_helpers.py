@@ -5,11 +5,21 @@ import uuid
 
 from PIL import Image, UnidentifiedImageError
 
-s3 = boto3.client(
-   "s3",
-   aws_access_key_id=os.environ.get("S3_KEY"),
-   aws_secret_access_key=os.environ.get("S3_SECRET")
-)
+# The boto3 client is created on first use (not at import time), and it gets
+# credentials from boto3's default chain instead of S3_KEY/S3_SECRET:
+#   - on EC2: the instance's IAM role (no keys stored anywhere)
+#   - locally: `aws configure` / `aws sso login` (~/.aws) or the standard
+#     AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_PROFILE env vars
+_s3_client = None
+
+
+def get_s3_client():
+    global _s3_client
+    if _s3_client is None:
+        _s3_client = boto3.client(
+            "s3", region_name=os.environ.get("AWS_REGION") or None)
+    return _s3_client
+
 
 # Only real image types are accepted (pdf used to be allowed).
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
@@ -59,17 +69,23 @@ def get_unique_filename(filename):
 
 
 BUCKET_NAME = os.environ.get('S3_BUCKET')
-S3_LOCATION = f'https://{BUCKET_NAME}.s3.amazonaws.com/'
+# Public base URL for uploaded files. Defaults to the bucket's own URL; set
+# S3_PUBLIC_URL (e.g. https://cdn.example.com/) when serving through CloudFront.
+S3_LOCATION = os.environ.get('S3_PUBLIC_URL') or f'https://{BUCKET_NAME}.s3.amazonaws.com/'
+if not S3_LOCATION.endswith('/'):
+    S3_LOCATION += '/'
 
 
-def upload_file_to_s3(file, content_type=None, acl='public-read'):
+def upload_file_to_s3(file, content_type=None):
+    # No ACL: new S3 buckets have ACLs disabled ("bucket owner enforced") and
+    # reject uploads that send one. Public read access to uploads/* is granted
+    # by a bucket policy (or CloudFront) instead - see CHANGES.md (A5).
     try:
-        s3.upload_fileobj(
+        get_s3_client().upload_fileobj(
             file,
             BUCKET_NAME,
             file.filename,
             ExtraArgs={
-                'ACL': acl,
                 'ContentType': content_type or file.content_type
             }
         )
