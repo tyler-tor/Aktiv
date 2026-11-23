@@ -1,34 +1,36 @@
+import { createSlice } from '@reduxjs/toolkit';
 import { csrfFetch } from './csrf';
-const GET_WORKOUTS = 'workouts/GET_WORKOUTS';
-const GET_CURRENT_WORKOUT = 'workouts/GET_CURRENT_WORKOUT'
-const ADD_WORKOUT = 'workouts/ADD_WORKOUT';
-const UPDATE_WORKOUT = 'workouts/UPDATE_WORKOUT';
-const DELETE_WORKOUT = 'workouts/DELETE_WORKOUT';
-
-const getWorkouts = (workouts) => ({
-    type: GET_WORKOUTS,
-    payload: workouts
+const workoutsSlice = createSlice({
+    name: 'workouts',
+    initialState: { workouts: null, currentWorkout: null },
+    reducers: {
+        // Loading all workouts replaces the list and clears currentWorkout.
+        getWorkouts(state, action) {
+            state.currentWorkout = null;
+            state.workouts = {};
+            action.payload.forEach((workout) => {
+                state.workouts[workout.id] = workout;
+            });
+        },
+        getCurrentWorkoutAction(state, action) {
+            state.currentWorkout = action.payload;
+        },
+        addWorkoutAction(state, action) {
+            state.currentWorkout = null;
+            if (!state.workouts) state.workouts = {};
+            state.workouts[action.payload.id] = action.payload;
+        },
+        updateWorkoutAction(state, action) {
+            state.currentWorkout = action.payload;
+            state.workouts[action.payload.id] = action.payload;
+        },
+        deleteWorkoutAction(state, action) {
+            delete state.workouts[action.payload];
+        },
+    },
 });
 
-const getCurrentWorkoutAction = (workout) => ({
-    type: GET_CURRENT_WORKOUT,
-    payload: workout
-})
-
-const addWorkoutAction = (workout) => ({
-    type: ADD_WORKOUT,
-    payload: workout
-});
-
-const updateWorkoutAction = (workout) => ({
-    type: UPDATE_WORKOUT,
-    payload: workout
-});
-
-const deleteWorkoutAction = (id) => ({
-    type: DELETE_WORKOUT,
-    payload: id
-});
+const { getWorkouts, getCurrentWorkoutAction, addWorkoutAction, updateWorkoutAction, deleteWorkoutAction } = workoutsSlice.actions;
 
 export const getAllWorkouts = () => async (dispatch) => {
     const response = await csrfFetch('/api/workouts/');
@@ -112,39 +114,4 @@ export const deleteWorkout = (id) => async (disptch) => {
 }
 
 
-export default function workoutReducer(state = {workouts: null, currentWorkout: null}, action) {
-    let newState;
-    switch (action.type) {
-        case GET_WORKOUTS:
-            newState = {
-                currentWorkout: null,
-                workouts: {}
-            }
-            action.payload.forEach((workout) => {
-                newState.workouts[workout.id] = workout
-            });
-            return newState;
-        case GET_CURRENT_WORKOUT:
-            newState = { ...state }
-            newState.currentWorkout = { ...action.payload }
-            return newState;
-        case ADD_WORKOUT:
-            newState = {
-                currentWorkout: null,
-                workouts: {...state.workouts}
-            };
-            newState.workouts[action.payload.id] = action.payload
-            return newState;
-        case UPDATE_WORKOUT:
-            newState = {...state};
-            newState.currentWorkout = {...action.payload}
-            newState.workouts[action.payload.id] = {...action.payload}
-            return newState;
-        case DELETE_WORKOUT:
-            newState = {...state};
-            delete newState.workouts[action.payload]
-            return newState;
-        default:
-            return state
-    }
-}
+export default workoutsSlice.reducer;

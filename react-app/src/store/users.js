@@ -1,15 +1,22 @@
-const GET_USERS = 'users/GET_USERS'
-const GET_ONE_USER = 'users/GET_ONE_USER'
-
-const getUsers = (users) => ({
-    type: GET_USERS,
-    payload: users
+import { createSlice } from '@reduxjs/toolkit';
+const usersSlice = createSlice({
+    name: 'users',
+    initialState: { currentUser: null, users: null },
+    reducers: {
+        getUsers(state, action) {
+            state.currentUser = null;
+            state.users = {};
+            action.payload.forEach((user) => {
+                state.users[user.id] = user;
+            });
+        },
+        getOneUserAction(state, action) {
+            state.currentUser = action.payload;
+        },
+    },
 });
 
-const getOneUserAction = (user) => ({
-    type: GET_ONE_USER,
-    payload: user
-});
+const { getUsers, getOneUserAction } = usersSlice.actions;
 
 export const getAllUsers = () => async (dispatch) => {
     const response = await fetch('/api/users/')
@@ -36,23 +43,4 @@ export const getOneUser = (userId) => async (dispatch) => {
     }
 }
 
-export default function usersReducer(state = {currentUser: null, users: null}, action) {
-    let newState;
-    switch (action.type) {
-        case GET_USERS:
-            newState = {
-                currentUser: null,
-                users: {}
-            }
-            action.payload.forEach((user) => {
-                newState.users[user.id] = user
-            })
-            return newState
-        case GET_ONE_USER:
-            newState = {...state};
-            newState.currentUser = {...action.payload};
-            return newState;
-        default:
-            return state
-    }
-}
+export default usersSlice.reducer;

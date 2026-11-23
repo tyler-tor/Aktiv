@@ -1,9 +1,16 @@
-const GET_FRIENDS_ACTIVITY = 'friends/GET_FRIENDS_ACTIVITY';
-
-const getFriendsActivityAction = (activity) => ({
-    type: GET_FRIENDS_ACTIVITY,
-    payload: activity
+import { createSlice } from '@reduxjs/toolkit';
+const friendsActivitySlice = createSlice({
+    name: 'friendsActivity',
+    initialState: { routes: null, workouts: null },
+    reducers: {
+        getFriendsActivityAction(state, action) {
+            state.routes = action.payload.routes;
+            state.workouts = action.payload.workouts;
+        },
+    },
 });
+
+const { getFriendsActivityAction } = friendsActivitySlice.actions;
 
 export const getAllFriendsActivity = () => async (dispatch) => {
     const res = await fetch('/api/me/friends/activity');
@@ -15,15 +22,4 @@ export const getAllFriendsActivity = () => async (dispatch) => {
 };
 
 
-export default function friendsActivityReducer(state = {routes: null, workouts: null}, action) {
-    let newState = {}
-    switch(action.type) {
-        case GET_FRIENDS_ACTIVITY:
-                newState = {...state}
-                newState.routes = action.payload.routes
-                newState.workouts = action.payload.workouts
-                return newState;
-        default:
-            return state;
-    }
-}
+export default friendsActivitySlice.reducer;

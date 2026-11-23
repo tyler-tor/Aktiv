@@ -1,39 +1,33 @@
+import { createSlice } from '@reduxjs/toolkit';
 import { csrfFetch } from './csrf';
-const GET_COMMENTS = 'comments/GET_COMMENTS';
-const WORKOUT_COMMENT = 'comments/WORKOUT_COMMENT';
-const ROUTE_COMMENT = 'comments/ROUTE_COMMENT';
-const UPDATE_COMMENT = 'comments/UPDATE_COMMENTS';
-const DELETE_COMMENT = 'comments/DELETE_COMMENT';
-const CLEAR_COMMENTS = 'comments/CLEAR_COMMENTS';
-
-const getComments = (comments) => ({
-    type: GET_COMMENTS,
-    payload: comments
+const commentsSlice = createSlice({
+    name: 'comments',
+    initialState: {},
+    reducers: {
+        // Replaces the whole map with the comments of one route/workout.
+        getComments(state, action) {
+            const newState = {};
+            action.payload.forEach((comment) => {
+                newState[comment.id] = comment;
+            });
+            return newState;
+        },
+        routeCommentAction(state, action) {
+            state[action.payload.id] = action.payload;
+        },
+        workoutCommentAction(state, action) {
+            state[action.payload.id] = action.payload;
+        },
+        updateCommentAction(state, action) {
+            state[action.payload.id].body = action.payload.body;
+        },
+        deleteCommentAction(state, action) {
+            delete state[action.payload];
+        },
+    },
 });
 
-const workoutCommentAction = (body) => ({
-    type: WORKOUT_COMMENT,
-    payload: body
-});
-
-const routeCommentAction = (body) => ({
-    type: ROUTE_COMMENT,
-    payload: body
-});
-
-const updateCommentAction = (comment) => ({
-    type: UPDATE_COMMENT,
-    payload: comment
-});
-
-const deleteCommentAction = (id) => ({
-    type: DELETE_COMMENT,
-    payload: id
-});
-
-// const clearCommentsAction = () => ({
-//     type: CLEAR_COMMENTS
-// });
+const { getComments, routeCommentAction, workoutCommentAction, updateCommentAction, deleteCommentAction } = commentsSlice.actions;
 
 export const getRouteComments = (id) => async (dispatch) => {
     const response = await csrfFetch(`/api/routes/${id}/comments`);
@@ -150,35 +144,4 @@ export const deleteComment = (commentId) => async (dispatch) => {
 }
 
 
-export default function commentsReducer(state = {}, action) {
-    let newState;
-    switch (action.type) {
-        case GET_COMMENTS:
-            newState = {};
-            action.payload.forEach((comment) => {
-                newState[comment.id] = comment
-            });
-            return newState;
-        case ROUTE_COMMENT:
-            newState = {...state};
-            newState[action.payload.id] = action.payload
-            return newState;
-        case WORKOUT_COMMENT:
-            newState = {...state};
-            newState[action.payload.id] = action.payload
-            return newState;
-        case UPDATE_COMMENT:
-            newState = {...state};
-            newState[action.payload.id].body = action.payload.body;
-            return newState;
-        case DELETE_COMMENT:
-            newState = {...state};
-            delete newState[action.payload];
-            return newState
-        case CLEAR_COMMENTS:
-            newState = {};
-            return newState;
-        default:
-            return state
-    }
-}
+export default commentsSlice.reducer;

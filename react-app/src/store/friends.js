@@ -1,25 +1,33 @@
+import { createSlice } from '@reduxjs/toolkit';
 import { csrfFetch } from './csrf';
 import { authenticate } from "./session";
 import { getOneUser } from "./users";
 
-const GET_FRIENDS = 'friends/GET_FRIENDS';
-const ADD_FRIEND = 'friends/ADD_FRIEND';
-const DELETE_FRIEND = 'friends/DELETE_FRIEND';
-
-const getFriends = (friends) => ({
-    type: GET_FRIENDS,
-    payload: friends
+const friendsSlice = createSlice({
+    name: 'friends',
+    initialState: {},
+    reducers: {
+        // Replaces the whole map: { [userId]: friend }
+        getFriends(state, action) {
+            const newState = {};
+            action.payload.forEach((user) => {
+                newState[user.id] = user;
+            });
+            return newState;
+        },
+        // NOTE: addFriend() dispatches the friend's *id*, so this stores the id
+        // under the key "undefined" (pre-existing behaviour, kept as-is; the
+        // friends slice is not read anywhere - pages use session.user.friends).
+        addFriendAction(state, action) {
+            state[action.payload.id] = action.payload;
+        },
+        deleteFriendAction(state, action) {
+            delete state[action.payload];
+        },
+    },
 });
 
-const addFriendAction = (user) => ({
-    type: ADD_FRIEND,
-    payload: user
-});
-
-const deleteFriendAction = (id) => ({
-    type: DELETE_FRIEND,
-    payload: id
-});
+const { getFriends, addFriendAction, deleteFriendAction } = friendsSlice.actions;
 
 export const getAllFriends = (id) => async (dispatch) => {
     const response = await csrfFetch(`/api/users/${id}/friends`);
@@ -64,25 +72,4 @@ export const deleteFriend = (id) => async (dispatch) => {
 };
 
 
-export default function friendsReducer(state = {}, action) {
-    let newState;
-    switch (action.type) {
-        case GET_FRIENDS:
-            newState = {};
-            action.payload.forEach((user) => {
-                newState[user.id] = user
-            });
-            return newState;
-        case ADD_FRIEND:
-            return {
-                ...state,
-                [action.payload.id]: action.payload
-            };
-        case DELETE_FRIEND:
-            newState = {...state};
-            delete newState[action.payload]
-            return newState;
-        default:
-            return state
-    }
-}
+export default friendsSlice.reducer;

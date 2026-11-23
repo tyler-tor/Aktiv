@@ -1,7 +1,4 @@
-// Redux 5 marks createStore as legacy (Redux Toolkit's configureStore is the
-// recommended replacement); legacy_createStore is the same function.
-import { legacy_createStore as createStore, combineReducers, applyMiddleware, compose } from 'redux';
-import { thunk } from 'redux-thunk';
+import { configureStore as configureReduxStore } from '@reduxjs/toolkit';
 import logger from 'redux-logger';
 import session from './session'
 import usersReducer from './users';
@@ -11,7 +8,12 @@ import workoutReducer from './workouts';
 import routesReducer from './routes';
 import friendsActivityReducer from './friendsActivity';
 
-const rootReducer = combineReducers({
+// Redux Toolkit's configureStore combines the slice reducers and adds the
+// default middleware: redux-thunk (our async action creators) and, in
+// development only, checks that warn when state is mutated outside a reducer
+// or when something non-serializable is put into the store. It also connects
+// the Redux DevTools browser extension in development.
+const reducer = {
   session,
   users: usersReducer,
   comments: commentsReducer,
@@ -19,22 +21,19 @@ const rootReducer = combineReducers({
   workouts: workoutReducer,
   routes: routesReducer,
   friendsActivity: friendsActivityReducer
-});
-
-
-let enhancer;
-
-if (import.meta.env.PROD) {
-  enhancer = applyMiddleware(thunk);
-} else {
-  // redux-logger prints every action in the browser console (development only).
-  const composeEnhancers =
-    window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ || compose;
-  enhancer = composeEnhancers(applyMiddleware(thunk, logger));
-}
+};
 
 const configureStore = (preloadedState) => {
-  return createStore(rootReducer, preloadedState, enhancer);
+  return configureReduxStore({
+    reducer,
+    preloadedState,
+    middleware: (getDefaultMiddleware) =>
+      import.meta.env.PROD
+        ? getDefaultMiddleware()
+        // redux-logger prints every action in the browser console (development only).
+        : getDefaultMiddleware().concat(logger),
+    devTools: !import.meta.env.PROD,
+  });
 };
 
 export default configureStore;

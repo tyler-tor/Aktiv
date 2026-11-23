@@ -1,19 +1,22 @@
+import { createSlice } from '@reduxjs/toolkit';
 import { csrfFetch } from './csrf';
-// constants
-
-const SET_USER = 'session/SET_USER';
-const REMOVE_USER = 'session/REMOVE_USER';
-
-const setUser = (user) => ({
-  type: SET_USER,
-  payload: user
+// Redux Toolkit slice: createSlice generates the action creators
+// (setUser, removeUser) and the reducer. Reducers may "mutate" state; Immer
+// turns that into an immutable update.
+const sessionSlice = createSlice({
+  name: 'session',
+  initialState: { user: null },
+  reducers: {
+    setUser(state, action) {
+      state.user = action.payload;
+    },
+    removeUser(state) {
+      state.user = null;
+    },
+  },
 });
 
-const removeUser = () => ({
-  type: REMOVE_USER,
-})
-
-const initialState = { user: null };
+const { setUser, removeUser } = sessionSlice.actions;
 
 export const authenticate = () => async (dispatch) => {
   const response = await csrfFetch('/api/auth/', {
@@ -104,13 +107,4 @@ export const signUp = (username, email, password, url, firstName, lastName) => a
   }
 }
 
-export default function reducer(state = initialState, action) {
-  switch (action.type) {
-    case SET_USER:
-      return { user: action.payload }
-    case REMOVE_USER:
-      return { user: null }
-    default:
-      return state;
-  }
-}
+export default sessionSlice.reducer;

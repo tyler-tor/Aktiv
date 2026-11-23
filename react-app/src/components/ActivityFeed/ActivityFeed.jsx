@@ -9,7 +9,10 @@ import { GOOGLE_MAPS_API_KEY } from '../../config';
 
 function ActivityFeed() {
     const dispatch = useDispatch();
-    const [polyRoutes, setPolyRoutes] = useState([])
+    // Static map image URL per route id, built from the Directions response.
+    // (This used to be written onto the route objects themselves, i.e. it
+    // mutated Redux state; Redux Toolkit freezes state, so it lives here now.)
+    const [mapSrcs, setMapSrcs] = useState({})
     const [following, setFollowing] = useState('Following')
     const [merged, setMerged] = useState([])
     const friendsRoutes = useSelector(state => state.friendsActivity.routes)
@@ -32,16 +35,16 @@ function ActivityFeed() {
         (async () => {
             if (friendsRoutes && routes) {
                 let arr = (following === 'Following') ? [...friendsRoutes] : [...routes]
+                const srcs = {}
                 for (let route of arr) {
                     await fetch(`https://maps.googleapis.com/maps/api/directions/json?origin=${route.startingPoint.lat},${route.startingPoint.lng}&destination=${route.endingPoint.lat},${route.endingPoint.lng}&mode=${route.travelMode}&key=${GOOGLE_MAPS_API_KEY}`).then(async (res) => {
                         if (res.ok) {
                             let jsonify = await res.json()
-                            route['directionsFetch'] = jsonify
-                            route['routeMapSrc'] = `https://maps.googleapis.com/maps/api/staticmap?size=500x400&markers=${route.startingPoint.lat},${route.startingPoint.lng}|${route.endingPoint.lat},${route.endingPoint.lng}&path=enc:${route.directionsFetch.routes[0].overview_polyline.points}&key=${GOOGLE_MAPS_API_KEY}`
+                            srcs[route.id] = `https://maps.googleapis.com/maps/api/staticmap?size=500x400&markers=${route.startingPoint.lat},${route.startingPoint.lng}|${route.endingPoint.lat},${route.endingPoint.lng}&path=enc:${jsonify.routes[0].overview_polyline.points}&key=${GOOGLE_MAPS_API_KEY}`
                         }
                     })
                 }
-                setPolyRoutes(arr)
+                setMapSrcs(srcs)
             }
         })();
     }, [following, dispatch, merged])
@@ -127,14 +130,17 @@ function ActivityFeed() {
                     </select>
                 </div>
                 {merged?.map((activity, ind) => {
+                    // Only routes (they have a startingPoint) get a map image;
+                    // route and workout ids can overlap.
+                    const routeMapSrc = activity.startingPoint ? mapSrcs[activity.id] : undefined
                     return (
                         <div className='af-posts-container'
                             key={ind}>
-                            {activity.routeMapSrc ? (
+                            {routeMapSrc ? (
                                 <div className='post-info-container'>
                                     <a className='img-container'
                                         href={`/routes/${activity.id}`}>
-                                        <img src={activity.routeMapSrc} alt='route map'
+                                        <img src={routeMapSrc} alt='route map'
                                             className='static-map'
                                         />
                                     </a>

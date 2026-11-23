@@ -1,29 +1,34 @@
+import { createSlice } from '@reduxjs/toolkit';
 import { csrfFetch } from './csrf';
-const GET_ROUTES = 'workouts/GET_ROUTES';
-const ADD_ROUTE = 'workouts/ADD_ROUTE';
-const UPDATE_ROUTE = 'workouts/UPDATE_ROUTE';
-const DELETE_ROUTE = 'workouts/DELETE_ROUTE';
-const GET_CURRENT_ROUTE = 'workouts/CURRENT_ROUTE';
-
-const getRoutes = (routes) => ({
-    type: GET_ROUTES,
-    payload: routes
+const routesSlice = createSlice({
+    name: 'routes',
+    initialState: { currentRoute: null, routes: null },
+    reducers: {
+        // Loading all routes replaces the list and clears currentRoute.
+        getRoutes(state, action) {
+            state.currentRoute = null;
+            state.routes = {};
+            action.payload.forEach((route) => {
+                state.routes[route.id] = route;
+            });
+        },
+        getCurrentRouteAction(state, action) {
+            state.currentRoute = action.payload;
+        },
+        addRouteAction(state, action) {
+            state.routes[action.payload.id] = action.payload;
+        },
+        updateRouteAction(state, action) {
+            state.currentRoute = action.payload;
+            state.routes[action.payload.id] = action.payload;
+        },
+        deleteRouteAction(state, action) {
+            delete state.routes[action.payload];
+        },
+    },
 });
 
-const getCurrentRouteAction = (route) => ({
-    type: GET_CURRENT_ROUTE,
-    payload: route
-});
-
-const addRouteAction = (route) => ({
-    type: ADD_ROUTE,
-    payload: route
-});
-
-const updateRouteAction = (route) => ({
-    type: UPDATE_ROUTE,
-    payload: route
-});
+const { getRoutes, getCurrentRouteAction, addRouteAction, updateRouteAction, deleteRouteAction } = routesSlice.actions;
 
 export const getCurrentRoute = (routeId) => async (dispatch) => {
     const res = await csrfFetch(`/api/routes/${routeId}`)
@@ -34,11 +39,6 @@ export const getCurrentRoute = (routeId) => async (dispatch) => {
         return data
     }
 }
-
-const deleteRouteAction = (id) => ({
-    type: DELETE_ROUTE,
-    payload: id
-});
 
 export const getAllRoutes = () => async (dispatch) => {
     const response = await csrfFetch('/api/routes/');
@@ -119,36 +119,4 @@ export const deleteRoute = (id) => async (disptch) => {
 }
 
 
-export default function routesReducer(state = { currentRoute: null, routes: null }, action) {
-    let newState;
-    switch (action.type) {
-        case GET_ROUTES:
-            newState = {
-                currentRoute: null,
-                routes: {}
-            }
-            action.payload.forEach((route) => {
-                newState.routes[route.id] = route
-            });
-            return newState;
-        case GET_CURRENT_ROUTE:
-            newState = { ...state }
-            newState.currentRoute = { ...action.payload }
-            return newState
-        case ADD_ROUTE:
-            newState = { ...state };
-            newState.routes[action.payload.id] = action.payload
-            return newState;
-        case UPDATE_ROUTE:
-            newState = { ...state };
-            newState.currentRoute = {...action.payload}
-            newState.routes[action.payload.id] = { ...action.payload }
-            return newState;
-        case DELETE_ROUTE:
-            newState = { ...state };
-            delete newState.routes[action.payload]
-            return newState;
-        default:
-            return state
-    }
-}
+export default routesSlice.reducer;
