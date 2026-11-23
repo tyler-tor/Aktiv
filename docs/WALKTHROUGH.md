@@ -1,6 +1,6 @@
 # Aktiv - Guided Code Walkthrough
 
-This is a guided tour of the Aktiv codebase (a Strava clone) as it is **right now on the `modernize` branch**, after the Batch 1 fixes (A1-A15) in `CHANGES.md`. Use it to get your bearings again, to debug the app, and to prepare for interview questions about it.
+This is a guided tour of the Aktiv codebase (a Strava clone) as it is **right now on the `modernize` branch**, after Batch 1 (security and bug fixes, A1-A15) and Batch 2 (safe seeding and the modern stack, A0 and A16-A23) in `CHANGES.md`. Use it to get your bearings again, to debug the app, and to prepare for interview questions about it.
 
 Read it top to bottom once. After that, use sections 8 (traces) and 9 (debugging cheat sheet) as a reference.
 
@@ -15,7 +15,7 @@ Read it top to bottom once. After that, use sections 8 (traces) and 9 (debugging
 7. [Frontend tour](#7-frontend-tour)
 8. [Three end-to-end traces](#8-three-end-to-end-traces)
 9. [Where do I look when...](#9-where-do-i-look-when)
-10. [What changed in Batch 1 and what is coming](#10-what-changed-in-batch-1-and-what-is-coming)
+10. [What changed in Batches 1 and 2 and what is coming](#10-what-changed-in-batches-1-and-2-and-what-is-coming)
 11. [Interview prep](#11-interview-prep)
 12. [Glossary](#12-glossary)
 
@@ -29,13 +29,13 @@ Read it top to bottom once. After that, use sections 8 (traces) and 9 (debugging
 
 | Layer | Technology | Where |
 |---|---|---|
-| Frontend | React 17, React Router 5, Redux 4 + redux-thunk, Create React App 4 | `react-app/` |
-| Maps | Google Maps JavaScript API via `@react-google-maps/api` | map components in `react-app/src/components/` |
-| Backend | Flask 2.0, Flask-SQLAlchemy 2.5 (SQLAlchemy 1.4), Flask-Login 0.5, Flask-WTF 0.15, Flask-Migrate (Alembic) | `app/` |
+| Frontend | React 19, React Router 7, Redux Toolkit 2 (react-redux 9), built with Vite 8 | `react-app/` |
+| Maps | Google Maps JavaScript API via `@react-google-maps/api` 2.20, loaded once by `context/GoogleMaps.jsx` | map components in `react-app/src/components/` |
+| Backend | Python 3.12, Flask 3.1 (app factory `create_app()`), Flask-SQLAlchemy 3.1 (SQLAlchemy 2.0), Flask-Login 0.6, Flask-WTF 1.3, Flask-Migrate 4 (Alembic 1.20) | `app/` |
 | Database | SQLite locally (`app/dev.db`), Postgres in production | `migrations/` |
 | File storage | AWS S3 via boto3 (image uploads) | `app/s3_helpers.py` |
 
-**How a request flows.** Every user action follows the same path: a React component calls `dispatch(someThunk())`; the thunk (in `react-app/src/store/*.js`) calls `fetch` / `csrfFetch` on a `/api/...` URL; Flask routes the URL to a function in a **blueprint** (`app/api/*.py`); that function uses a **form** to validate input and a **SQLAlchemy model** to read or write the database; it returns JSON; the thunk dispatches an action; the **reducer** updates the Redux store; components re-render.
+**How a request flows.** Every user action follows the same path: a React component calls `dispatch(someThunk())`; the thunk (in `react-app/src/store/*.js`) calls `fetch` / `csrfFetch` on a `/api/...` URL; Flask routes the URL to a function in a **blueprint** (`app/api/*.py`); that function uses a **form** to validate input and a **SQLAlchemy model** to read or write the database; it returns JSON; the thunk dispatches an action; the **slice reducer** (Redux Toolkit `createSlice`) updates the Redux store; components re-render.
 
 ```mermaid
 flowchart LR
@@ -47,7 +47,7 @@ flowchart LR
     M --> D[(SQLite / Postgres)]
     F -->|boto3| S3[(AWS S3)]
     F -->|JSON| T
-    T -->|action| R[Reducer]
+    T -->|action| R[Slice reducer]
     R --> C
     C -->|Maps JS API, browser key| G[Google Maps]
 ```
@@ -58,19 +58,20 @@ Note that **Google Maps is called from the browser**, not from Flask. Flask neve
 
 ## 2. Folder map
 
-Skipped: `node_modules/`, `react-app/build/`, virtualenvs, lockfiles, CSS files (each component has a matching `.css`).
+Skipped: `node_modules/`, `react-app/dist/`, virtualenvs, lockfiles, CSS files (each component has a matching `.css`).
 
 ```text
 Strava-Capstone-Clone/
 ├── .env.example              # Template for backend env vars (copy to .env)
 ├── .flaskenv                 # FLASK_APP=app, FLASK_DEBUG=1 (read by `flask` CLI)
-├── CHANGES.md                # What Batch 1 (A1-A15) changed and how to verify it
+├── .python-version           # 3.12 (for pyenv / uv)
+├── CHANGES.md                # What Batch 1 (A1-A15) and Batch 2 (A0, A16-A23) changed and how to verify it
 ├── MODERNIZATION_PLAN.md     # All 58 planned improvements (A1-A58)
-├── requirements.txt          # Python runtime dependencies (source of truth)
+├── requirements.txt          # The one list of Python runtime dependencies (all pinned)
 ├── requirements-dev.txt      # autopep8 etc.
-├── Pipfile / Pipfile.lock    # Older pipenv files (lock is stale; A16 removes them)
 ├── app/
-│   ├── __init__.py           # Creates the Flask app: config, login, blueprints, CSRF, React serving
+│   ├── __init__.py           # create_app(): config, extensions, blueprints, CSRF cookie, React serving
+│   ├── extensions.py         # login, migrate, csrf (created without an app; db re-exported)
 │   ├── config.py             # APP_ENV + Development/Testing/Production config classes
 │   ├── s3_helpers.py         # Image validation (Pillow) and S3 upload (boto3)
 │   ├── dev.db                # Local SQLite database (git-ignored, created by you)
@@ -85,11 +86,11 @@ Strava-Capstone-Clone/
 │   ├── forms/                # Flask-WTF forms = server-side validation
 │   │   ├── login_form.py, signup_form.py, route_form.py, workout_form.py, comment_form.py
 │   ├── models/               # SQLAlchemy models = database tables
-│   │   ├── db.py             # db object, environment, SCHEMA, add_prefix_for_prod()
+│   │   ├── db.py             # db object, environment, SCHEMA, add_prefix_for_prod(), utcnow()
 │   │   ├── user.py           # User + the `follows` association table
 │   │   ├── route.py, workout.py, comment.py
-│   └── seeds/                # `flask seed all` / `flask seed undo` demo data
-│       ├── __init__.py       # The CLI group; production TRUNCATE logic lives here
+│   └── seeds/                # `flask seed all [--reset]` / `flask seed undo` demo data
+│       ├── __init__.py       # The CLI group: seeds only an empty DB; --reset/undo refused in production
 │       ├── users.py, routes.py, workouts.py, comments.py
 ├── migrations/               # Alembic (Flask-Migrate)
 │   ├── env.py                # Creates/uses the Postgres SCHEMA in production
@@ -97,54 +98,58 @@ Strava-Capstone-Clone/
 │       ├── 0a0f8863271d_.py               # Initial schema (2022)
 │       └── b7c1e9a4d2f3_reconcile_models.py # A15: follows PK, drop workouts.route_id, timestamp defaults
 └── react-app/
-    ├── package.json          # Dependencies + "proxy": "http://localhost:5000"
-    ├── .env.example          # REACT_APP_GOOGLE_MAPS_API_KEY template
-    ├── public/index.html     # The single HTML page
+    ├── package.json          # Dependencies + scripts (dev/start = vite, build = vite build)
+    ├── vite.config.js        # Dev server on :3000, /api proxy to Flask :5000, build -> dist/
+    ├── index.html            # The single HTML page (Vite entry, loads /src/main.jsx)
+    ├── .env.example          # VITE_GOOGLE_MAPS_API_KEY template
+    ├── public/               # favicon + images, copied as-is into dist/
     └── src/
-        ├── index.js          # Entry: creates the store, wraps <App/> in Provider + ModalProvider
-        ├── App.js            # Session restore, data preload, all URL routes
-        ├── config.js         # GOOGLE_MAPS_API_KEY (baked in at build time)
-        ├── context/Modal.js  # Tiny modal system (React portal)
-        ├── store/            # Redux: one file per slice (actions + thunks + reducer)
-        │   ├── index.js      # combineReducers + thunk (+ logger in dev)
+        ├── main.jsx          # Entry: creates the store, createRoot(...).render(<App/>) in Provider + GoogleMapsProvider + ModalProvider
+        ├── App.jsx           # Session restore, data preload, all URL routes (React Router 7)
+        ├── config.js         # GOOGLE_MAPS_API_KEY (import.meta.env, baked in at build time)
+        ├── context/
+        │   ├── Modal.jsx     # Tiny modal system (React portal)
+        │   └── GoogleMaps.jsx# Loads the Maps JS API once (useJsApiLoader) + useGoogleMaps() hook
+        ├── store/            # Redux Toolkit: one createSlice per file + the thunks that call the API
+        │   ├── index.js      # configureStore (thunk + dev checks, logger in dev)
         │   ├── csrf.js       # csrfFetch(): fetch + X-CSRFToken header
         │   ├── session.js, routes.js, workouts.js, comments.js,
         │   ├── users.js, friends.js, friendsActivity.js, uploads.js
-        └── components/
-            ├── NavBar.js, Footer.js, NotFound.js
-            ├── auth/              # LoginForm, SignUpForm, LogoutButton, ProtectedRoute
+        └── components/       # .jsx files (Vite only parses JSX in .jsx files)
+            ├── NavBar.jsx, Footer.jsx, NotFound.jsx
+            ├── auth/              # LoginForm, SignUpForm, LogoutButton, ProtectedRoute (layout route)
             ├── HomePage/ + Map/   # Home page: one big map with a marker per route
-            ├── NewMap/NewRoute.js # Create a route by clicking the map
+            ├── NewMap/NewRoute.jsx # Create a route by clicking the map
             ├── RouteDisplay/      # One route: directions on a map + details + comments
             ├── MapAdjustment/     # Edit/delete route modals (EditMapForm has its own map)
             ├── NewWorkout/        # Log a workout form
             ├── WorkoutDisplay/    # One workout + edit/delete modals
             ├── ActivityFeed/      # Feed of friends' (or everyone's) routes + workouts
             ├── Comments/, AddCommentForm/, AddCommentModal/, EditComment/, EditCommentForm/
-            ├── User.js, AdjustFriendStatus/  # Profile page + add/remove friend
+            ├── User.jsx, AdjustFriendStatus/  # Profile page + add/remove friend
             ├── ImageUploadComponenet/        # (sic - typo in folder name) file picker + upload
-            ├── UsersList.js, UserRoutes/Routes.js  # Simple list pages (see bugs in section 7)
+            ├── UsersList.jsx, UserRoutes/Routes.jsx  # Simple list pages (see bugs in section 7)
 ```
 
 ---
 
 ## 3. How to run it locally
 
-You need **two terminals**: one for Flask (port 5000), one for the React dev server (port 3000). You use the app at `http://localhost:3000`.
+You need **two terminals**: one for Flask (port 5000), one for the Vite dev server (port 3000). You use the app at `http://localhost:3000`.
 
 ### Backend (terminal 1)
 
-1. **Python version.** The Pipfile says Python 3.9 and the pins in `requirements.txt` are old (Flask 2.0.1 etc.). Use Python 3.9 if you can (`pyenv install 3.9`). Newer Pythons may fail to install some of these pinned versions; A16 moves the project to Python 3.12.
-2. **Create and activate a virtualenv** in the project root:
+1. **Python 3.12.** All pins in `requirements.txt` are tested on Python 3.12 (`.python-version` says so). Install it with `pyenv install 3.12`, `brew install python@3.12`, or `uv python install 3.12`.
+2. **Create and activate a virtualenv** in the project root (`.venv` is git-ignored):
    ```bash
-   python3.9 -m venv .venv
-   source .venv/bin/activate
+   python3.12 -m venv .venv
+   source .venv/bin/activate        # Windows: .venv\Scripts\activate
    ```
-3. **Install dependencies:**
+3. **Install dependencies** (one file for the app, one for dev tools; there is no Pipfile any more):
    ```bash
    pip install -r requirements.txt -r requirements-dev.txt
    ```
-   `psycopg2==2.9.5` (the Postgres driver) is the source build, so it needs the Postgres client headers (`brew install libpq` / `apt install libpq-dev`). If it fails and you only use SQLite locally, you can temporarily `pip install psycopg2-binary==2.9.5` instead (A17 makes that switch permanently).
+   The Postgres driver is `psycopg2-binary` (prebuilt), so no compiler or `pg_config` is needed.
 4. **Create `.env`** from the template and fill it in:
    ```bash
    cp .env.example .env
@@ -154,46 +159,50 @@ You need **two terminals**: one for Flask (port 5000), one for the React dev ser
 
    | Variable | Example | What reads it |
    |---|---|---|
-   | `APP_ENV` | `development` | `app/config.py` `get_app_env()` picks the config class. (`FLASK_ENV` still works as a fallback.) |
+   | `APP_ENV` | `development` | `app/config.py` `get_app_env()`; `create_app()` uses it to pick the config class. (`FLASK_ENV` still works as a fallback.) |
    | `SECRET_KEY` | 64 hex chars | Signs the session cookie and CSRF token. Placeholder = warning in dev, crash in production (`check_secret_key()`). |
-   | `DATABASE_URL` | `sqlite:///dev.db` | `get_database_url()`. The relative SQLite path ends up as `app/dev.db`. Missing = clear `RuntimeError` at startup. |
+   | `DATABASE_URL` | `sqlite:///dev.db` | `get_database_url()`. `create_app()` turns the relative SQLite path into `app/dev.db` (Flask-SQLAlchemy 3 would otherwise use `instance/`). Missing = clear `RuntimeError` at startup. |
    | `SCHEMA` | `flask_schema` | Only used when `APP_ENV=production` (Postgres schema on Render). |
    | `S3_BUCKET`, `AWS_REGION` | `my-bucket`, `us-west-2` | `app/s3_helpers.py`. Credentials come from `~/.aws` or `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`, not from `.env` keys named `S3_KEY`. Only needed to test uploads. |
    | `SQLALCHEMY_ECHO` | `0` | Optional: silences the SQL log in development. |
 
-   The `flask` command loads `.flaskenv` and `.env` automatically (python-dotenv).
+   The `flask` command loads `.flaskenv` and `.env` automatically (python-dotenv). `FLASK_APP=app` points at the `app` package, and Flask finds its `create_app()` factory by itself.
 5. **Build the database** (this runs the Alembic migrations in `migrations/versions/`):
    ```bash
    flask db upgrade
    ```
-   Do **not** run `flask db migrate` as part of setup (the old README says to). `migrate` *generates a new migration file* by comparing models to the DB; you only run it when you change a model.
+   Do **not** run `flask db migrate` as part of setup. `migrate` *generates a new migration file* by comparing models to the DB; you only run it when you change a model. If you have an older `app/dev.db`, back it up first (`cp app/dev.db app/dev.db.bak`).
 6. **Seed demo data:**
    ```bash
-   flask seed all
+   flask seed all             # seeds only if the database has no users
+   flask seed all --reset     # local only: delete everything, then seed again
    ```
-   Running it a second time without `flask seed undo` first fails with a UNIQUE constraint error (the demo users already exist). To reset: `flask seed undo && flask seed all`.
+   `flask seed all` is safe to run any number of times: on a database that already has users it prints `Database already has data. Skipping seed.` and changes nothing. `--reset` (and `flask seed undo`) delete all rows and refuse to run with `APP_ENV=production`.
 7. **Start Flask:**
    ```bash
    flask run        # http://localhost:5000, debugger + auto-reload from FLASK_DEBUG=1
    ```
+   Production uses gunicorn with the factory: `gunicorn "app:create_app()"` (never `flask run`).
 
 ### Frontend (terminal 2)
 
-1. Maps key: copy `react-app/.env.example` to `react-app/.env.local` and set `REACT_APP_GOOGLE_MAPS_API_KEY=...` (a browser key restricted to `http://localhost:3000/*`; see A12 in `CHANGES.md`). Without it the app works but maps show nothing and the console warns `REACT_APP_GOOGLE_MAPS_API_KEY is not set`.
-2. Install and start:
+1. **Node 20.19+ or 22.12+** (Vite 8's requirement; `package.json` `engines`).
+2. Maps key: copy `react-app/.env.example` to `react-app/.env.local` and set `VITE_GOOGLE_MAPS_API_KEY=...` (a browser key restricted to `http://localhost:3000/*`; see A12 in `CHANGES.md`). It used to be `REACT_APP_GOOGLE_MAPS_API_KEY`; rename it if you have an old `.env.local`. Without it the app works but maps show nothing and the console warns `VITE_GOOGLE_MAPS_API_KEY is not set`.
+3. Install and start:
    ```bash
    cd react-app
-   npm install
-   npm start            # Node 17+: NODE_OPTIONS=--openssl-legacy-provider npm start
+   npm ci               # exact versions from package-lock.json
+   npm run dev          # (npm start does the same) -> http://localhost:3000
    ```
-   CRA 4 uses webpack 4, which needs the OpenSSL flag on modern Node. Vite (A19) removes that.
-3. Open `http://localhost:3000` and click **DemoUser** (or log in with `demo@aa.io` / `password`).
+4. Open `http://localhost:3000` and click **DemoUser** (or log in with `demo@aa.io` / `password`).
 
-### Why two ports work: the CRA proxy
+Production build: `npm run build` writes `react-app/dist/`; then `flask run` (or gunicorn) alone serves the whole app at `http://localhost:5000`. `npm run preview` serves `dist/` with Vite for a quick look.
 
-`react-app/package.json` contains `"proxy": "http://localhost:5000"`. When the React dev server on port 3000 receives a request it cannot serve itself (like `/api/routes/`), it forwards it to Flask on port 5000. To the browser, everything comes from `localhost:3000`, so cookies are first-party and **no CORS is needed** (which is why A10 could delete Flask-Cors).
+### Why two ports work: the Vite proxy
 
-In production there is only one server: Flask serves the built React files from `react-app/build` (see `react_root` in section 5) plus the API on the same domain.
+`react-app/vite.config.js` has `server.proxy: { '/api': 'http://localhost:5000' }`. The Vite dev server on port 3000 serves the React code itself and forwards every `/api/...` request to Flask on port 5000. To the browser, everything comes from `localhost:3000`, so cookies are first-party and **no CORS is needed** (which is why A10 could delete Flask-Cors). (Create React App did the same with a `"proxy"` field in `package.json` before A19.)
+
+In production there is only one server: Flask serves the built React files from `react-app/dist` (see `react_root` in section 5) plus the API on the same domain.
 
 ---
 ## 4. Data model
@@ -274,7 +283,7 @@ Things to notice:
 
 ### Notes per model file
 
-- **`app/models/db.py`** - Creates the single `db = SQLAlchemy()` object that every model imports. Also defines `environment` (from `get_app_env()`), `SCHEMA` (env var) and `add_prefix_for_prod("users.id")`, which turns foreign key targets into `flask_schema.users.id` in production. This is the "Render pattern": production tables live in a named Postgres schema. A47 plans to remove it.
+- **`app/models/db.py`** - Creates the single `db = SQLAlchemy()` object that every model imports. Also defines `utcnow()` (the Python default for every `created_at`/`updated_at`: the current UTC time, stored without tzinfo because the columns are plain `DateTime`), `environment` (from `get_app_env()`), `SCHEMA` (env var) and `add_prefix_for_prod("users.id")`, which turns foreign key targets into `flask_schema.users.id` in production. This is the "Render pattern": production tables live in a named Postgres schema. A47 plans to remove it.
 - **`app/models/__init__.py`** - Re-exports `db`, `User`, `Route`, `Comment`, `Workout` so other code can write `from app.models import User, db`.
 - **`app/models/user.py`** - `User(db.Model, UserMixin)`. `UserMixin` gives Flask-Login the `is_authenticated` / `get_id()` methods it needs. The `password` property setter hashes with Werkzeug's `generate_password_hash`; `check_password()` verifies. The self-referencing `followers` relationship goes through `follows`: `user.followers` = the users who have a row "follower -> user". `to_dict()` returns the user **plus every route, workout and comment they own (each fully serialized) plus their friends**. That deep nesting is why `/api/auth/` is slow (A24).
 - **`app/models/route.py`** - `Route`. `EDITABLE_FIELDS` + `set_kwargs()` (added in A3) make sure an update can only touch whitelisted columns, never `user_id`. `to_dict()` reshapes columns for the frontend: `startingPoint`/`endingPoint` objects, a `requestData` object that is already in the shape Google's `DirectionsService` expects, nested `comments`, and `ownerInfo` (the author's name/picture/email).
@@ -287,25 +296,28 @@ Relationship names are plural even when they point to one object (`comment.users
 
 ## 5. Backend tour
 
-### 5.1 `app/__init__.py`, step by step
+### 5.1 `app/__init__.py` and `app/extensions.py`, step by step
 
-This file builds the app at import time (there is no `create_app()` factory yet; A16 adds one). In order:
+Since A16 the app is built by an **application factory**: `create_app(config_name=None)` creates a *new* Flask app each time it is called. Nothing is created at import time, so tests can build an app with their own settings (`create_app('testing')`), and `flask` / gunicorn call the factory for you (`FLASK_APP=app`, `gunicorn "app:create_app()"`).
 
-1. **Imports** the models, every blueprint, the seed CLI group and the config helpers.
-2. **Creates the app:** `Flask(__name__, static_folder='../react-app/build', static_url_path='/')`. The static folder is the **React production build**. That is how one Flask process serves both the API and the frontend in production.
-3. **Login manager:** `login = LoginManager(app)` and `login.login_view = 'auth.unauthorized'`. When a `@login_required` view is hit without a session, Flask-Login **redirects (302)** to `/api/auth/unauthorized`, which returns `{"errors": ["Unauthorized"]}` with 401. `fetch` follows the redirect, so the frontend sees a 401.
-4. **`load_user(id)`** (`@login.user_loader`): on each request, Flask-Login reads the user id from the signed session cookie and calls this to get the `User` row. That object becomes `current_user`.
-5. **Seed commands:** `app.cli.add_command(seed_commands)` registers `flask seed all|undo`.
-6. **Config:** `app.config.from_object(get_config(APP_ENV))` picks `DevelopmentConfig`, `TestingConfig` or `ProductionConfig` from `app/config.py`. Then `check_secret_key()` (crashes in production on a missing/placeholder key) and a check that `SQLALCHEMY_DATABASE_URI` is set.
-7. **Blueprints:** seven `register_blueprint` calls mount each `app/api/*.py` file under its URL prefix (`/api/users`, `/api/auth`, `/api/routes`, `/api/workouts`, `/api/comments`, `/api/img`, `/api/me`).
-8. **Extensions:** `db.init_app(app)` connects SQLAlchemy; `Migrate(app, db)` adds the `flask db ...` commands.
-9. **CSRF:** `csrf = CSRFProtect(app)` makes **every** POST/PUT/PATCH/DELETE require a valid `X-CSRFToken` header. `handle_csrf_error` turns failures into JSON 400 `{"errors": ["CSRF token missing or invalid. ..."]}`.
-10. **`inject_csrf_token`** (`@app.after_request`): on **every** response, sets a `csrf_token` cookie containing `generate_csrf()`. It is deliberately **not** HttpOnly so JavaScript can read it. Details in section 6.
-11. **`/api/docs`** (`api_help`): lists every URL rule and its docstring. Disabled (404) in production unless `ENABLE_API_DOCS=1`. Handy locally: open `http://localhost:5000/api/docs`.
-12. **`react_root`**: the catch-all `GET /` and `GET /<path:path>`. It returns `index.html` from the React build for any path no other rule matched, so that React Router can handle URLs like `/routes/5` after a browser refresh. (The `favicon.ico` branch calls `app.send_from_directory`, which does not exist; it is a latent bug, but in practice `/favicon.ico` is served by the static route first. A17 fixes it.)
-13. **Error handlers:** 413 (upload too large) returns JSON `{"errors": "File is too large (max 5 MB)"}`. 404 returns `index.html`.
+**`app/extensions.py`** creates the extensions *without* an app: `login = LoginManager()` (with `login.login_view = 'auth.unauthorized'`), `migrate = Migrate()`, `csrf = CSRFProtect()`, and re-exports `db` from `app/models/db.py`. Any module can import them without importing the app.
 
-The config classes in **`app/config.py`**: `Config` holds shared settings (cookie flags `HttpOnly`/`SameSite=Lax`, `MAX_CONTENT_LENGTH = 5 MB`, `WTF_CSRF_TIME_LIMIT = None`, `pool_pre_ping`). `DevelopmentConfig` turns SQL echo on. `TestingConfig` uses in-memory SQLite. `ProductionConfig` sets `Secure` cookies and turns `/api/docs` off. `get_config()` raises a clear error for an unknown `APP_ENV`.
+**`create_app()`**, in order:
+
+1. **Creates the app:** `Flask(__name__, static_folder='../react-app/dist', static_url_path='/')`. The static folder is the **React production build** (`npm run build`). That is how one Flask process serves both the API and the frontend in production.
+2. **Config:** `app.config.from_object(get_config(config_name))` picks `DevelopmentConfig`, `TestingConfig` or `ProductionConfig` from `app/config.py` (`config_name` defaults to `APP_ENV`). Then `check_secret_key()` (crashes in production on a missing/placeholder key) and a check that `SQLALCHEMY_DATABASE_URI` is set. A relative SQLite URL is made absolute under `app/` so `sqlite:///dev.db` keeps meaning `app/dev.db`.
+3. **Extensions:** `db.init_app(app)` connects SQLAlchemy; `migrate.init_app(app, db)` adds the `flask db ...` commands; `login.init_app(app)`; `csrf.init_app(app)` makes **every** POST/PUT/PATCH/DELETE require a valid `X-CSRFToken` header.
+4. **Seed commands:** `app.cli.add_command(seed_commands)` registers `flask seed all [--reset]` and `flask seed undo`.
+5. **Blueprints:** seven `register_blueprint` calls mount each `app/api/*.py` file under its URL prefix (`/api/users`, `/api/auth`, `/api/routes`, `/api/workouts`, `/api/comments`, `/api/img`, `/api/me`).
+6. **`register_hooks(app)`** adds **`inject_csrf_token`** (`@app.after_request`): on **every** response, sets a `csrf_token` cookie containing `generate_csrf()`. It is deliberately **not** HttpOnly so JavaScript can read it. Details in section 6.
+7. **`register_app_routes(app)`** adds:
+   - **`/api/docs`** (`api_help`): lists every URL rule and its docstring. Disabled (404) in production unless `ENABLE_API_DOCS=1`. Handy locally: open `http://localhost:5000/api/docs`.
+   - **`react_root`**: the catch-all `GET /` and `GET /<path:path>`. It returns `index.html` from the React build for any path no other rule matched, so that React Router can handle URLs like `/routes/5` after a browser refresh. `/favicon.ico` uses `flask.send_from_directory(app.static_folder, ...)` (the old `app.send_from_directory` call never existed; fixed in A17).
+8. **`register_error_handlers(app)`**: CSRF failures become JSON 400 `{"errors": ["CSRF token missing or invalid. ..."]}`; 413 (upload too large) returns JSON `{"errors": "File is too large (max 5 MB)"}`; 404 returns `index.html`.
+
+**`load_user(id)`** (`@login.user_loader`, module level): on each request, Flask-Login reads the user id from the signed session cookie and calls this to get the `User` row with `db.session.get(User, int(id))`. That object becomes `current_user`. When a `@login_required` view is hit without a session, Flask-Login **redirects (302)** to `/api/auth/unauthorized`, which returns `{"errors": ["Unauthorized"]}` with 401. `fetch` follows the redirect, so the frontend sees a 401.
+
+The config classes in **`app/config.py`**: `Config` holds shared settings (cookie flags `HttpOnly`/`SameSite=Lax`, `MAX_CONTENT_LENGTH = 5 MB`, `WTF_CSRF_TIME_LIMIT = None`, `pool_pre_ping`). `DevelopmentConfig` turns SQL echo on. `TestingConfig` uses in-memory SQLite. `ProductionConfig` sets `Secure` cookies and turns `/api/docs` off. `get_config()` raises a clear error for an unknown `APP_ENV`. (The classes read environment variables when `config.py` is first imported.)
 
 ### 5.2 Forms (`app/forms/`)
 
@@ -365,7 +377,20 @@ All responses are JSON. "Login" = `@login_required` (401 via redirect if not log
 | GET | `/api/docs` | no | - | `__init__.api_help` | - | Map of URL -> [methods, docstring]. 404 in production. |
 | GET | any other path | no | - | `__init__.react_root` | - | React `index.html` |
 
-**Owner checks** follow the same shape everywhere (see `update_route` in `app/api/route_routes.py`): load with `Model.query.get(id)` -> `None` returns 404 -> `record.user_id != current_user.id` returns 403 -> only then validate the form and save.
+**Owner checks** follow the same shape everywhere (see `update_route` in `app/api/route_routes.py`): load with `db.session.get(Model, id)` -> `None` returns 404 -> `record.user_id != current_user.id` returns 403 -> only then validate the form and save.
+
+### 5.3a SQLAlchemy 2.0 query patterns (A18)
+
+The code uses the SQLAlchemy 2.0 style everywhere; `Model.query...` (the 1.x "legacy" API) is gone from the app code. The four patterns you will see:
+
+| You want | 2.0 style used here | Old 1.x style (do not use) |
+|---|---|---|
+| One row by primary key | `db.session.get(Route, id)` (returns `None` if missing) | `Route.query.get(id)` |
+| All rows | `db.session.scalars(db.select(Route)).all()` | `Route.query.all()` |
+| First row matching a condition | `db.session.scalar(db.select(User).where(User.email == email))` | `User.query.filter(...).first()` |
+| Filtered + ordered list | `db.session.scalars(db.select(Route).where(Route.user_id == uid).order_by(Route.created_at.desc())).all()` | `Route.query.filter(...).order_by(...).all()` |
+
+`db.select(...)` builds a `SELECT` statement; `session.scalars(stmt)` runs it and returns model objects (`.all()` = list); `session.scalar(stmt)` returns the first object or `None`. Raw SQL must be wrapped in `text("...")` (a plain string passed to `execute()` is an error in 2.0); the seeds use `select()`/`delete()` instead. The friends relationship (`user.followers`) is still a `lazy='dynamic'` relationship, which works in 2.0. Models still use the classic `db.Column(...)` style (typed `Mapped[...]` columns are optional and were not adopted).
 
 ### 5.4 `app/s3_helpers.py`
 
@@ -383,20 +408,21 @@ For uploaded images to be viewable, the bucket needs a public-read policy on `up
 
 ### 5.5 Seeds and migrations
 
-**Seeds** (`app/seeds/`) are the `flask seed` CLI commands:
+**Seeds** (`app/seeds/`) are the `flask seed` CLI commands (rewritten in A0):
 
-- `seed_users()` creates 5 users (demo, marnie, bobbie, jimmy, tammie, all with password `password`) and their friendships by assigning `demo.followers = [...]`.
-- `seed_routes()`, `seed_workouts()`, `seed_comments()` create rows with **hard-coded `user_id`s** (1-5). They assume the users got ids 1-5, which is only true on an empty table with reset ids.
+- `flask seed all` -> `seed()` in `app/seeds/__init__.py`. If `database_has_data()` (at least one user) it prints `Database already has data. Skipping seed.` and stops. Otherwise `seed_demo_data()` runs the four seed functions. **Safe to run on every deploy.**
+- `flask seed all --reset` and `flask seed undo` -> `delete_all_data()` deletes every row **children before parents** (`comments`, `workouts`, `routes`, `follows`, `users`) with SQLAlchemy `delete()`. Both call `refuse_in_production()` first, which raises `click.ClickException` (exit code 1) when `APP_ENV=production`.
+- `seed_users()` creates 5 users (demo, marnie, tammie, bobbie, jimmy, all with password `password`), inserts them in that order and flushes (so a fresh DB gives demo=1 ... jimmy=5), then sets the friendships (`demo.followers = [...]`). It **returns the list of users**.
+- `seed_routes(users)` and `seed_workouts(users)` return their objects; `seed_comments(users, routes, workouts)` uses them. Owners are written as `users[2].id`, `routes[19].id`, ... so **no database id is hard-coded**; the seeds work even if ids do not start at 1 (e.g. on Postgres after a `--reset`).
 - Seed images point at the old `capstone-strava-clone-aktiv` S3 bucket (plan open question 4).
-- Each `undo_*()` runs `DELETE FROM <table>` on SQLite, or `TRUNCATE table <schema>.<table> RESTART IDENTITY CASCADE` in production.
 
-> **Warning: `flask seed all` in production wipes all real data.** In `app/seeds/__init__.py`, when `environment == 'production'`, `seed()` first TRUNCATEs `users`, `routes`, `workouts` and `comments` (with `CASCADE`, which also empties `follows`), then calls every `undo_*()`, then re-seeds. That is the App Academy Render template behavior: it was meant for a demo database that is rebuilt on every deploy. If this command runs against a production database with real sign-ups (for example from a deploy script), **every user, route, workout and comment is deleted** and replaced by the 5 demo users. Never run it against a database you care about; take a `pg_dump` first. The raw-string `db.session.execute("TRUNCATE ...")` calls will also stop working on SQLAlchemy 2.0 until they are wrapped in `text()` (A18).
+> **The seeding rule.** Deploys run `flask db upgrade && flask seed all` (safe every time). Reset only locally with `flask seed all --reset`. Never run `docker compose down -v` on a stack with data you care about (it deletes the database volume). Take a backup (`pg_dump`) before any production migration. Before A0, `flask seed all` in production started with `TRUNCATE ... RESTART IDENTITY CASCADE` on every table, and the old Render deploy ran it on every deploy, wiping real data each time.
 
 **Migrations** (`migrations/`) are managed by Flask-Migrate (a wrapper around Alembic):
 
 - `0a0f8863271d_.py` - the initial schema from 2022 (users, follows, routes, workouts, comments).
 - `b7c1e9a4d2f3_reconcile_models.py` - A15: drops `workouts.route_id`, rebuilds `follows` with a composite primary key and `ON DELETE CASCADE` (via a copy-and-rename `follows_new`), and adds database-side `CURRENT_TIMESTAMP` defaults. Has a working `downgrade()`.
-- `migrations/env.py` - in production runs `CREATE SCHEMA IF NOT EXISTS {SCHEMA}` and `SET search_path TO {SCHEMA}` so tables go into the named schema.
+- `migrations/env.py` - in production runs `CREATE SCHEMA IF NOT EXISTS {SCHEMA}` (wrapped in `text()` and committed, as SQLAlchemy 2.0 requires) and `SET search_path TO {SCHEMA}` so tables go into the named schema. It hands Alembic the database URL with `url.render_as_string(hide_password=False)` (2.0's `str(url)` hides the password).
 
 Commands: `flask db upgrade` (apply), `flask db downgrade` (undo one), `flask db migrate -m "msg"` (generate a new migration after changing a model; always read the generated file), `flask db current` (where am I).
 
@@ -420,15 +446,15 @@ A malicious site can make your browser *send* cookies to Aktiv, but it cannot *r
 
 ### Step by step
 
-**Restore session (every page load).** `App.js` `useEffect` -> `dispatch(authenticate())` (`store/session.js`) -> `GET /api/auth/` -> `authenticate()` in `auth_routes.py`. If the `session` cookie has a valid user id, Flask-Login's `load_user()` loads the user and the view returns `to_dict()` + `nonFriends`. Otherwise it returns `{"errors": [...]}` and the thunk returns `null`. Either way the response also sets the `csrf_token` cookie, so the browser has a token before the user submits anything.
+**Restore session (every page load).** `App.jsx` `useEffect` -> `dispatch(authenticate())` (`store/session.js`) -> `GET /api/auth/` -> `authenticate()` in `auth_routes.py`. If the `session` cookie has a valid user id, Flask-Login's `load_user()` loads the user and the view returns `to_dict()` + `nonFriends`. Otherwise it returns `{"errors": [...]}` and the thunk returns `null`. Either way the response also sets the `csrf_token` cookie, so the browser has a token before the user submits anything.
 
-**Login.** `LoginForm.onLogin` -> `login(email, password)` thunk -> `csrfFetch('POST /api/auth/login')` with the header -> `CSRFProtect` checks the header -> `auth_routes.login()` validates `LoginForm`, finds the user by email, `user.check_password()`, then `login_user(user)` writes the user id into the session -> response sets a new `session` cookie -> thunk dispatches `setUser(data)` -> `state.session.user` is set -> `LoginForm` sees `user` and `<Redirect to='/'>`.
+**Login.** `LoginForm.onLogin` -> `login(email, password)` thunk -> `csrfFetch('POST /api/auth/login')` with the header -> `CSRFProtect` checks the header -> `auth_routes.login()` validates `LoginForm`, finds the user by email, `user.check_password()`, then `login_user(user)` writes the user id into the session -> response sets a new `session` cookie -> thunk dispatches `setUser(data)` -> `state.session.user` is set -> `LoginForm` sees `user` and renders `<Navigate to='/' replace />`.
 
 **Signup.** `SignUpForm.onSignUp` checks passwords match -> `signUp(...)` thunk -> `POST /api/auth/signup` -> `SignUpForm` validators (unique email/username, `Email()`, min 8 chars) -> create `User` (password setter hashes it) -> `login_user` -> returns the user. If a picture was chosen, the component *then* calls `uploadImage()` and `setProfilePicture()` (`PUT /api/auth/profile-picture`) because uploads need a logged-in user, and finally `authenticate()` again to refresh the picture.
 
-**Logout.** `LogoutButton.onLogout` -> `logout()` thunk -> `GET /api/auth/logout` -> `logout_user()` removes the user id from the session -> thunk dispatches `removeUser()` -> `history.push('/')`.
+**Logout.** `LogoutButton.onLogout` -> `logout()` thunk -> `GET /api/auth/logout` -> `logout_user()` removes the user id from the session -> thunk dispatches `removeUser()` -> `navigate('/')`.
 
-**Protected pages.** On the backend, `@login_required` guards every data endpoint. On the frontend, `components/auth/ProtectedRoute.js` renders its children only if `state.session.user` exists, otherwise redirects to `/`. The frontend check is only for UX; the backend check is the real one.
+**Protected pages.** On the backend, `@login_required` guards every data endpoint. On the frontend, `components/auth/ProtectedRoute.jsx` is a **layout route**: it renders the matched page through `<Outlet />` only if `state.session.user` exists, otherwise `<Navigate to='/' replace />`. The frontend check is only for UX; the backend check is the real one.
 
 **Ownership.** Update/delete endpoints compare `record.user_id` with `current_user.id` and return 403 (section 5.3). Create endpoints take `user_id` from `current_user`, ignoring any `user_id` the frontend sends (the frontend does still send it in its payloads; it is harmless). `set_kwargs()` only touches `EDITABLE_FIELDS`.
 
@@ -447,7 +473,7 @@ sequenceDiagram
     R->>R: csrfFetch reads csrf_token cookie
     R->>F: POST /api/auth/login + X-CSRFToken header
     F->>F: CSRFProtect compares header vs session token
-    F->>D: User.query.filter(email)
+    F->>D: select(User).where(email)
     F->>F: user.check_password()
     F->>L: login_user(user)
     F-->>R: 200 user JSON + Set-Cookie session (HttpOnly)
@@ -464,19 +490,19 @@ Other security measures from Batch 1: generic login error plus a dummy hash chec
 
 ### 7.1 Entry point
 
-- **`react-app/public/index.html`** - the one HTML page with `<div id="root">`.
-- **`react-app/src/index.js`** - `configureStore()` creates the Redux store, then `ReactDOM.render(...)` renders `<App />` wrapped in `<Provider store>` (makes Redux available) and `<ModalProvider>` (from `context/Modal.js`; a portal target for all the edit/delete/comment modals).
-- **`react-app/src/App.js`** - on mount, awaits `authenticate()`; if a user comes back, `preload()` fetches all routes and workouts; only then sets `loaded` and renders. A second `useEffect` preloads after a later login and resets on logout. `preloadedFor` (a `useRef`) prevents refetching for the same user.
+- **`react-app/index.html`** - the one HTML page with `<div id="root">` and `<script type="module" src="/src/main.jsx">`. Vite uses it as the entry point in development and rewrites it into `dist/index.html` (with hashed JS/CSS file names) on `npm run build`.
+- **`react-app/src/main.jsx`** - `configureStore()` creates the Redux store, then `createRoot(document.getElementById('root')).render(...)` (the React 18+ API) renders `<App />` inside `<React.StrictMode>`, `<Provider store>` (makes Redux available), `<GoogleMapsProvider>` (loads Google Maps once, section 7.5) and `<ModalProvider>` (from `context/Modal.jsx`; a portal target for all the edit/delete/comment modals).
+- **`react-app/src/App.jsx`** - on mount, awaits `authenticate()`; if a user comes back, `preload()` fetches all routes and workouts; only then sets `loaded` and renders. A second `useEffect` preloads after a later login and resets on logout. `preloadedFor` (a `useRef`) stores `{ id, promise }` so the same user is not preloaded twice; in development, StrictMode runs the startup effect twice, and the second run awaits the same promise instead of rendering early.
 
-### 7.2 `App.js` routes
+### 7.2 `App.jsx` routes
 
-One flat `<Switch>` (React Router v5): the first matching route wins. `<NavBar />` and `<Footer />` render on every page.
+React Router 7 (package `react-router`), "declarative mode": `<BrowserRouter>` + `<Routes>` (imported as `RouterRoutes`, because the app has its own page component called `Routes`). Each `<Route>` has `path` and `element`; paths match exactly unless they end in `/*`, and the router picks the best match (order does not matter). The protected pages are **children of a layout route** `<Route element={<ProtectedRoute />}>`. `<NavBar />` and `<Footer />` render on every page.
 
 | URL | Component | Who | What it shows |
 |---|---|---|---|
-| `/` | `HomePage` or `LoginForm` | anyone | Logged in: full-screen map with one marker per route (`Map/MapComponent.js`); click marker -> info window with link. Logged out: login form + DemoUser button. |
-| `/sign-up` | `SignUpForm` | logged out (logged in -> redirect `/`) | Sign-up form with optional picture |
-| `/login` | redirect to `/` | anyone | Kept for old links |
+| `/` | `HomePage` or `LoginForm` | anyone | Logged in: full-screen map with one marker per route (`Map/MapComponent.jsx`); click marker -> info window with link. Logged out: login form + DemoUser button. |
+| `/sign-up` | `SignUpForm` | logged out (logged in -> `<Navigate to='/' replace />`) | Sign-up form with optional picture |
+| `/login` | `<Navigate to='/' replace />` | anyone | Kept for old links |
 | `/users` | `UsersList` | protected | Plain list of usernames (not linked from the navbar; see bugs below) |
 | `/users/:userId` | `User` | protected | Profile: picture, name, add/remove friend button, all their routes and workouts |
 | `/routes` | `UserRoutes/Routes` | protected | Plain list of route titles (not linked from the navbar; see bugs below) |
@@ -485,27 +511,29 @@ One flat `<Switch>` (React Router v5): the first matching route wins. `<NavBar /
 | `/workouts/:workoutId` | `WorkoutDisplay` | protected | Workout details, photo, comments; edit/delete if owner |
 | `/newRoute` | `NewMap/NewRoute` | protected | Click-to-place map + form to create a route |
 | `/newWorkout` | `NewWorkout/NewWorkout` | protected | Form to log a workout |
-| anything else | `NotFound` | anyone | "Page not found" with a link home |
+| `*` (anything else) | `NotFound` | anyone | "Page not found" with a link home |
 
-`NavBar.js` links to `/` ("Routes"), `/activity` ("Activity"), `/newRoute` ("+ Route"), `/newWorkout` ("+ Workout") when logged in, and `/`, `/sign-up` when logged out.
+`NavBar.jsx` links (`<NavLink end>`) to `/` ("Routes"), `/activity` ("Activity"), `/newRoute` ("+ Route"), `/newWorkout` ("+ Workout") when logged in, and `/`, `/sign-up` when logged out. Components navigate in code with `const navigate = useNavigate(); navigate('/activity')` (v5's `useHistory().push` is gone) and read URL params with `useParams()`.
 
 ### 7.3 Redux store map
 
-`store/index.js` combines seven reducers and adds `thunk` (plus `redux-logger` in development, which logs every action in the browser console - very useful for debugging). Each store file holds action types, action creators, thunks and the reducer together (the "ducks" pattern).
+The store uses **Redux Toolkit** (A21). `store/index.js` calls Toolkit's `configureStore({ reducer, preloadedState, middleware, devTools })`: the default middleware includes **redux-thunk** (so `dispatch(someThunk())` works) and, in development only, checks that log an error if state is mutated outside a reducer or a non-serializable value is stored; `redux-logger` is added in development (logs every action with before/after state in the browser console), and the Redux DevTools extension is enabled in development.
 
-| State key | File | State shape | Thunks -> endpoint | Action types |
+Each store file has one **`createSlice`** (name, initial state, reducer functions; Toolkit generates the action creators and action types like `routes/getRoutes`) plus the hand-written **thunks** that call the API and dispatch those actions. Reducers are written as "mutations" (`state.routes[id] = route`); **Immer** turns that into a proper immutable update, and Toolkit freezes the state so nothing else can change it by accident.
+
+| State key | File | State shape | Thunks -> endpoint | Slice actions |
 |---|---|---|---|---|
-| `session` | `session.js` | `{ user: User or null }` (user includes `routes`, `workouts`, `comments`, `friends`, `nonFriends`) | `authenticate` -> GET `/api/auth/`; `login` -> POST `/api/auth/login`; `logout` -> GET `/api/auth/logout`; `signUp` -> POST `/api/auth/signup` | `session/SET_USER`, `session/REMOVE_USER` |
-| `routes` | `routes.js` | `{ routes: {id: route} or null, currentRoute: route or null }` | `getAllRoutes` -> GET `/api/routes/`; `getCurrentRoute(id)` -> GET `/api/routes/<id>`; `addRoute` -> POST `/api/routes/`; `updateRoute` -> PUT `/api/routes/<id>`; `deleteRoute` -> DELETE `/api/routes/<id>` | `workouts/GET_ROUTES` etc. (the prefix says "workouts" - copy-paste leftover, harmless) |
-| `workouts` | `workouts.js` | `{ workouts: {id: workout} or null, currentWorkout }` | `getAllWorkouts`, `getCurrentWorkout`, `addWorkout`, `updateWorkout`, `deleteWorkout` -> `/api/workouts/...` | `workouts/GET_WORKOUTS`, ... |
-| `comments` | `comments.js` | `{ id: comment }` (only the comments of the page you are on) | `getRouteComments` -> GET `/api/routes/<id>/comments`; `getWorkoutComments` -> GET `/api/workouts/<id>/comments` (**no such backend route: 405; also unused**); `newRouteComment` -> POST `/api/routes/<id>/comments`; `newWorkoutComment` -> POST `/api/workouts/<id>/comments` (unused by components); `updateComment` -> PUT `/api/comments/<id>`; `deleteComment` -> DELETE `/api/comments/<id>` | `comments/GET_COMMENTS`, ... |
-| `users` | `users.js` | `{ users: {id: user} or null, currentUser }` | `getAllUsers` -> GET `/api/users/`; `getOneUser(id)` -> GET `/api/users/<id>` (plain `fetch`, fine for GETs) | `users/GET_USERS`, `users/GET_ONE_USER` |
+| `session` | `session.js` | `{ user: User or null }` (user includes `routes`, `workouts`, `comments`, `friends`, `nonFriends`) | `authenticate` -> GET `/api/auth/`; `login` -> POST `/api/auth/login`; `logout` -> GET `/api/auth/logout`; `signUp` -> POST `/api/auth/signup` | `session/setUser`, `session/removeUser` |
+| `routes` | `routes.js` | `{ routes: {id: route} or null, currentRoute: route or null }` | `getAllRoutes` -> GET `/api/routes/`; `getCurrentRoute(id)` -> GET `/api/routes/<id>`; `addRoute` -> POST `/api/routes/`; `updateRoute` -> PUT `/api/routes/<id>`; `deleteRoute` -> DELETE `/api/routes/<id>` | `routes/getRoutes` (also clears `currentRoute`), `getCurrentRouteAction`, `addRouteAction`, `updateRouteAction`, `deleteRouteAction` |
+| `workouts` | `workouts.js` | `{ workouts: {id: workout} or null, currentWorkout }` | `getAllWorkouts`, `getCurrentWorkout`, `addWorkout`, `updateWorkout`, `deleteWorkout` -> `/api/workouts/...` | `workouts/getWorkouts`, ... |
+| `comments` | `comments.js` | `{ id: comment }` (only the comments of the page you are on) | `getRouteComments` -> GET `/api/routes/<id>/comments`; `getWorkoutComments` -> GET `/api/workouts/<id>/comments` (**no such backend route: 405; also unused**); `newRouteComment` -> POST `/api/routes/<id>/comments`; `newWorkoutComment` -> POST `/api/workouts/<id>/comments` (unused by components); `updateComment` -> PUT `/api/comments/<id>`; `deleteComment` -> DELETE `/api/comments/<id>` | `comments/getComments`, ... |
+| `users` | `users.js` | `{ users: {id: user} or null, currentUser }` | `getAllUsers` -> GET `/api/users/`; `getOneUser(id)` -> GET `/api/users/<id>` (plain `fetch`, fine for GETs) | `users/getUsers`, `users/getOneUserAction` |
 | `friends` | `friends.js` | `{ id: friend }` | `getAllFriends(id)` -> GET `/api/users/<id>/friends` (unused); `addFriend(id)` -> POST `/api/users/<id>/friends`; `deleteFriend(id)` -> DELETE same. Both then re-run `authenticate()` and `getOneUser()` to refresh. | `friends/...` |
-| `friendsActivity` | `friendsActivity.js` | `{ routes: [] or null, workouts: [] or null }` | `getAllFriendsActivity` -> GET `/api/me/friends/activity` | `friends/GET_FRIENDS_ACTIVITY` |
+| `friendsActivity` | `friendsActivity.js` | `{ routes: [] or null, workouts: [] or null }` | `getAllFriendsActivity` -> GET `/api/me/friends/activity` | `friendsActivity/getFriendsActivityAction` |
 
-`store/uploads.js` is not a reducer, just helpers: `checkImageFile(file)` (type/size check before upload), `uploadImage(file)` (POST `/api/img/upload` with `FormData`, returns `{url}` or `{error}`), `setProfilePicture(url)` (PUT `/api/auth/profile-picture`).
+`store/uploads.js` is not a slice, just helpers: `checkImageFile(file)` (type/size check before upload), `uploadImage(file)` (POST `/api/img/upload` with `FormData`, returns `{url}` or `{error}`), `setProfilePicture(url)` (PUT `/api/auth/profile-picture`).
 
-**Error convention in thunks:** on success they dispatch and return nothing (`undefined`); on a 4xx they return `data.errors` (an array); on 5xx they return `['An error occurred. Please try again.']`. Components do `const data = await dispatch(thunk()); if (data) setErrors(data); else navigate`.
+**Error convention in thunks:** on success they dispatch and return nothing (`undefined`); on a 4xx they return `data.errors` (an array); on 5xx they return `['An error occurred. Please try again.']`. Components do `const data = await dispatch(thunk()); if (data) setErrors(data); else navigate(...)`. (The thunks were kept as plain functions rather than `createAsyncThunk` so these return values stay the same; RTK Query would be a later, bigger refactor.)
 
 ### 7.4 `csrfFetch` (`store/csrf.js`)
 
@@ -513,16 +541,16 @@ One flat `<Switch>` (React Router v5): the first matching route wins. `<NavBar /
 
 ### 7.5 Google Maps
 
-- **Key:** `src/config.js` exports `GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY`. CRA bakes it into the JavaScript at `npm start` / `npm run build` time. Changing it means restarting or rebuilding. (Before A12, Flask handed the key out in API responses.)
-- **Loading:** four components each call `useLoadScript({ id: 'google-map-script', googleMapsApiKey })` from `@react-google-maps/api`: `Map/MapComponent.js`, `NewMap/NewRoute.js`, `RouteDisplay/RouteDisplay.js`, `MapAdjustment/EditMapForm.js`. The shared `id` means the script tag is only added once. Each shows "Loading...." until `isLoaded` is true. (A23 plans one loader at the app level.)
+- **Key:** `src/config.js` exports `GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY`. Vite only exposes variables that start with `VITE_` and bakes them into the JavaScript at `npm run dev` / `npm run build` time. Changing it means restarting or rebuilding. (Before A12, Flask handed the key out in API responses; before A19 it was called `REACT_APP_GOOGLE_MAPS_API_KEY`.)
+- **Loading (A23):** `context/GoogleMaps.jsx` has a `GoogleMapsProvider` (wrapped around `<App />` in `main.jsx`) that calls `useJsApiLoader({ id: 'google-map-script', googleMapsApiKey, libraries: LIBRARIES })` from `@react-google-maps/api` **once for the whole app**. `LIBRARIES = ['maps']` is a constant outside any component: a new array on every render would make the library reload the script. The four map components (`Map/MapComponent.jsx`, `NewMap/NewRoute.jsx`, `RouteDisplay/RouteDisplay.jsx`, `MapAdjustment/EditMapForm.jsx`) call `const { isLoaded } = useGoogleMaps();` and show "Loading...." until it is true. To add a library (e.g. `places`), add it to `LIBRARIES`.
 
 | Component | Google features used | What for |
 |---|---|---|
-| `Map/MapComponent.js` (home page) | `GoogleMap`, `Marker`, `InfoWindow` | One marker per route at its start point; info window links to `/routes/<id>` |
-| `NewMap/NewRoute.js` | `GoogleMap` `onClick`, draggable `Marker`s, `DistanceMatrixService` | Click to place start/end; Distance Matrix computes the distance text (e.g. "16.2 km") that is saved with the route |
-| `MapAdjustment/EditMapForm.js` | same as NewRoute | Move the markers of an existing route and recompute distance |
-| `RouteDisplay/RouteDisplay.js` | `DirectionsService` + `DirectionsRenderer` | Requests directions using `route.requestData` (shaped by `Route.to_dict()`), draws the path |
-| `ActivityFeed/ActivityFeed.js` | plain `fetch` to the Directions **web service** + Static Maps image URL | For each route, fetches directions JSON, then builds a static map image URL with the encoded polyline (`path=enc:...`) |
+| `Map/MapComponent.jsx` (home page) | `GoogleMap`, `Marker`, `InfoWindow` | One marker per route at its start point; info window links to `/routes/<id>` |
+| `NewMap/NewRoute.jsx` | `GoogleMap` `onClick`, draggable `Marker`s, `DistanceMatrixService` | Click to place start/end; Distance Matrix computes the distance text (e.g. "16.2 km") that is saved with the route |
+| `MapAdjustment/EditMapForm.jsx` | same as NewRoute | Move the markers of an existing route and recompute distance |
+| `RouteDisplay/RouteDisplay.jsx` | `DirectionsService` + `DirectionsRenderer` | Requests directions using `route.requestData` (shaped by `Route.to_dict()`), draws the path |
+| `ActivityFeed/ActivityFeed.jsx` | plain `fetch` to the Directions **web service** + Static Maps image URL | For each route, fetches directions JSON, then builds a static map image URL with the encoded polyline (`path=enc:...`) and keeps it in component state (`mapSrcs[route.id]`; before A21 it was written onto the Redux route objects) |
 
 Two known issues (see the plan): the ActivityFeed browser call to `maps.googleapis.com/maps/api/directions/json` is generally blocked by CORS and rejected for referrer-restricted keys, so feed thumbnails likely do not appear (A28 moves this to the server). And in `RouteDisplay`, the `useEffect` depends on `response`, so every Directions result triggers another fetch of all routes (A29).
 
@@ -530,65 +558,67 @@ Google Cloud must have the **Maps JavaScript API** enabled; `DistanceMatrixServi
 
 ### 7.6 Key components
 
-- **`auth/LoginForm.js`** - `onLogin` dispatches `login(email, password)`; `demoClick` dispatches `login('demo@aa.io', 'password')`. Redirects to `/` once `state.session.user` exists.
-- **`auth/SignUpForm.js`** - `onSignUp`; uses `ImageUploadComponent` in "deferred" mode (`onFileSelected`) and uploads after the account exists.
-- **`ImageUploadComponenet/ImageUploadComponent.js`** - two modes: default (pick + "Upload" button -> `uploadImage` -> `setUrl(url)` for the parent) and deferred (`onFileSelected`). Shows readable errors.
-- **`NewMap/NewRoute.js`** - see trace (b).
-- **`NewWorkout/NewWorkout.js`** - see trace (c).
-- **`RouteDisplay/RouteDisplay.js`** - loads via `getAllRoutes()` + `getCurrentRoute(routeId)`; shows `MapAdjustment` (edit/delete modals) only if `currUser.id === route.userId`; renders `<Comments id={route.id} />`.
-- **`WorkoutDisplay/WorkoutDisplay.js`** - loads via `getAllWorkouts()` + `getCurrentWorkout(workoutId)`; `EditWorkoutModal`/`DeleteWorkoutModal` for the owner; renders `<Comments id={workout.id} />` (see bug below).
-- **`Comments/Comments.js`** - calls `getRouteComments(id)` and lists `state.comments`; `AddCommentModal` -> `AddCommentForm` -> `newRouteComment`; `EditCommentModal` -> `EditCommentForm` -> `updateComment` / `deleteComment`.
-- **`User.js`** + **`AdjustFriendStatus/`** - profile page; `AdjustFriendStatusAlert` dispatches `addFriend` or `deleteFriend`.
-- **`ActivityFeed/ActivityFeed.js`** - dispatches `getAllRoutes`, `getAllWorkouts`, `getAllFriendsActivity`; merges routes + workouts and sorts by `createdAt`; dropdown switches between friends and everyone.
-- **`context/Modal.js`** - `ModalProvider` renders an empty `<div>` and shares it through context; `<Modal onClose>` portals its children into it.
+- **`auth/LoginForm.jsx`** - `onLogin` dispatches `login(email, password)`; `demoClick` dispatches `login('demo@aa.io', 'password')`. Redirects to `/` once `state.session.user` exists.
+- **`auth/SignUpForm.jsx`** - `onSignUp`; uses `ImageUploadComponent` in "deferred" mode (`onFileSelected`) and uploads after the account exists.
+- **`ImageUploadComponenet/ImageUploadComponent.jsx`** - two modes: default (pick + "Upload" button -> `uploadImage` -> `setUrl(url)` for the parent) and deferred (`onFileSelected`). Shows readable errors.
+- **`NewMap/NewRoute.jsx`** - see trace (b).
+- **`NewWorkout/NewWorkout.jsx`** - see trace (c).
+- **`RouteDisplay/RouteDisplay.jsx`** - loads via `getAllRoutes()` + `getCurrentRoute(routeId)`; shows `MapAdjustment` (edit/delete modals) only if `currUser.id === route.userId`; renders `<Comments id={route.id} />`.
+- **`WorkoutDisplay/WorkoutDisplay.jsx`** - loads via `getAllWorkouts()` + `getCurrentWorkout(workoutId)`; `EditWorkoutModal`/`DeleteWorkoutModal` for the owner; renders `<Comments id={workout.id} />` (see bug below).
+- **`Comments/Comments.jsx`** - calls `getRouteComments(id)` and lists `state.comments`; `AddCommentModal` -> `AddCommentForm` -> `newRouteComment`; `EditCommentModal` -> `EditCommentForm` -> `updateComment` / `deleteComment`.
+- **`User.jsx`** + **`AdjustFriendStatus/`** - profile page; `AdjustFriendStatusAlert` dispatches `addFriend` or `deleteFriend`.
+- **`ActivityFeed/ActivityFeed.jsx`** - dispatches `getAllRoutes`, `getAllWorkouts`, `getAllFriendsActivity`; merges routes + workouts and sorts by `createdAt`; dropdown switches between friends and everyone.
+- **`context/Modal.jsx`** - `ModalProvider` renders an empty `<div>` and shares it through context; `<Modal onClose>` portals its children into it.
+- **`context/GoogleMaps.jsx`** - `GoogleMapsProvider` + `useGoogleMaps()` (section 7.5).
+- **`auth/ProtectedRoute.jsx`** - layout route: `<Outlet />` for a logged-in user, otherwise `<Navigate to='/' replace state={{ from: location }} />`.
 
-### 7.7 Existing frontend bugs worth knowing (not fixed in Batch 1)
+### 7.7 Existing frontend bugs worth knowing (not fixed in Batches 1-2)
 
 These are real behaviors of the current code. They are good debugging practice and good honest interview material ("here is what I would fix").
 
 1. **Workout pages use route comments.** `WorkoutDisplay` renders the shared `Comments` component, which always calls `getRouteComments(id)` and `AddCommentForm` always calls `newRouteComment`. So on `/workouts/3`, the comment box shows and adds comments for **route 3**, not workout 3. The workout's real comments are only counted in the feed (`activity.comments.length`). Fix: pass a `type` prop and use `newWorkoutComment` plus a new `GET /api/workouts/<id>/comments` endpoint.
-2. **`/users` and `/routes` list pages read the wrong state.** `UsersList` does `Object.values(state.users)` and `Routes` does `Object.values(state.routes)`, but those slices are `{users, currentUser}` and `{routes, currentRoute}`, so they map over the wrong objects. Neither page is linked from the navbar.
-3. **`addFriend` dispatches an id where the reducer expects an object** (`addFriendAction(data.friend.id)` vs `action.payload.id`). Harmless because the UI reads friends from `session.user` (refreshed by `authenticate()`), not from `state.friends`.
+2. **`/users` and `/routes` list pages crash.** `UsersList` does `Object.values(state.users)` and `Routes` does `Object.values(state.routes)`, but those slices are `{users, currentUser}` and `{routes, currentRoute}`, so they map over `null` values and throw `Cannot read properties of null (reading 'id')`. Neither page is linked from the navbar.
+3. **`addFriend` dispatches an id where the reducer expects an object** (`addFriendAction(data.friend.id)` vs `action.payload.id`), so `state.friends` gets a key `"undefined"`. Harmless because the UI reads friends from `session.user` (refreshed by `authenticate()`), not from `state.friends`. (Kept as-is in A21 on purpose; there is a comment in `friends.js`.)
 4. **`NewWorkout` image check reads stale state.** `setErrors([...])` then immediately `if (errors.length < 1)` uses the old value, so the request is still sent without an image; the server then returns 400 `image : This field is required.`, which is shown instead.
-5. **`ADD_ROUTE`/`UPDATE_ROUTE`/`DELETE_ROUTE` reducers mutate the nested `routes` object** (`{...state}` is a shallow copy). It works because the top-level object changes, but it breaks Redux's immutability rule.
+5. ~~Reducers mutated nested state~~ - **fixed by A21**: the slices use Immer, and Toolkit's dev checks now report any mutation outside a reducer.
 
 ---
 ## 8. Three end-to-end traces
 
 ### (a) Logging in as demo
 
-1. **Page load.** `src/index.js` renders `<App />`. `App.js`'s first `useEffect` awaits `dispatch(authenticate())`.
-2. `authenticate()` in `src/store/session.js` calls `csrfFetch('/api/auth/')` (a GET, so no header). The CRA proxy forwards it to Flask.
+1. **Page load.** `src/main.jsx` renders `<App />`. `App.jsx`'s first `useEffect` awaits `dispatch(authenticate())`.
+2. `authenticate()` in `src/store/session.js` calls `csrfFetch('/api/auth/')` (a GET, so no header). The Vite dev-server proxy forwards it to Flask.
 3. Flask: `load_user()` in `app/__init__.py` finds no user id in the session. `authenticate()` in `app/api/auth_routes.py` returns `{"errors": ["Unauthorized"]}`. `inject_csrf_token()` adds the `csrf_token` cookie to the response.
 4. The thunk sees `data.errors` and returns `null`. `App` skips `preload()`, sets `loaded = true`, and the `/` route renders `<LoginForm />` (because `user` is null).
-5. **Click "DemoUser".** `demoClick()` in `src/components/auth/LoginForm.js` dispatches `login('demo@aa.io', 'password')`.
+5. **Click "DemoUser".** `demoClick()` in `src/components/auth/LoginForm.jsx` dispatches `login('demo@aa.io', 'password')`.
 6. `login()` in `session.js` calls `csrfFetch('/api/auth/login', { method: 'POST', body: JSON })`. `csrfFetch` reads the cookie with `getCsrfToken()` and sets `X-CSRFToken`.
 7. Flask: `CSRFProtect` validates the header against the session's token (400 JSON via `handle_csrf_error` if not).
-8. `login()` in `auth_routes.py`: `LoginForm()` reads the JSON, `validate_on_submit()` checks required/length, `User.query.filter(User.email == ...)`, `user.check_password()` (Werkzeug hash check), `login_user(user)`.
+8. `login()` in `auth_routes.py`: `LoginForm()` reads the JSON, `validate_on_submit()` checks required/length, `db.session.scalar(db.select(User).where(User.email == ...))`, `user.check_password()` (Werkzeug hash check), `login_user(user)`.
 9. It builds `user.to_dict()` (with all nested routes/workouts/comments/friends), adds `nonFriends` (every other user, each fully serialized), and returns it. The response carries a new `session` cookie.
-10. Back in `login()` thunk: `dispatch(setUser(data))` -> session `reducer` stores `{ user: data }` -> returns `null` (no errors).
+10. Back in `login()` thunk: `dispatch(setUser(data))` -> the session slice's `setUser` reducer sets `state.user = data` -> returns `null` (no errors).
 11. React re-renders: `App`'s `/` route now shows `<HomePage />`; `NavBar` shows the logged-in links. `App`'s second `useEffect` sees a new `userId` and runs `preload()` -> `getAllWorkouts()` + `getAllRoutes()` -> `GET /api/workouts/` and `GET /api/routes/`.
 12. `HomePage` renders `MapComponent`, which also dispatches `getAllRoutes()` and draws a `Marker` for each route's `startingPoint`.
 
 ### (b) Creating a route on the map
 
-1. User clicks **+ Route** in `NavBar` -> `/newRoute` -> `ProtectedRoute` (user exists) -> `NewRoute` in `src/components/NewMap/NewRoute.js`.
-2. `useLoadScript({ id: 'google-map-script', googleMapsApiKey: GOOGLE_MAPS_API_KEY })` loads the Maps JS API; when `isLoaded`, the `GoogleMap` renders centered on the US.
+1. User clicks **+ Route** in `NavBar` -> `/newRoute` -> `ProtectedRoute` (user exists) -> `NewRoute` in `src/components/NewMap/NewRoute.jsx`.
+2. `const { isLoaded } = useGoogleMaps()` reads the shared loader state from `GoogleMapsProvider` (the Maps JS API was loaded once at app start); when `isLoaded`, the `GoogleMap` renders centered on the US.
 3. User clicks **Set Start Point** (`setAllowStart(true)`), clicks the map -> `handleMarkerSet(e)` stores `{lat, lng}` from `e.latLng` in `start`. Same for **Set End Point** -> `end`. Markers are draggable (`onDragEnd` updates the state).
 4. User picks **Travel Type** (`WALKING` / `BICYCLING`). Once `start`, `end` and `travelingMode` are all set, `<DistanceMatrixService>` renders, asks Google for the distance, and its `callback` calls `setDistance(response.rows[0].elements[0].distance.text)`.
 5. User chooses a picture and clicks **Upload** in `ImageUploadComponent` -> `uploadImage(file)` in `src/store/uploads.js` -> `checkImageFile()` -> `csrfFetch('/api/img/upload', POST FormData)` -> Flask `upload_image()` in `app/api/img_routes.py` -> `allowed_file()`, `detect_image()`, `get_unique_filename()`, `upload_file_to_s3()` in `app/s3_helpers.py` -> returns `{url}` -> component calls `setUrl(url)` in `NewRoute`.
 6. User fills title and description and submits -> `handleSubmit()` checks start/end/url, builds the payload (`start_lat`, `start_lng`, `end_lat`, `end_lng`, `traveling_mode`, `distance`, `image_url`, `title`, `description`) and `await dispatch(addRoute(payload))`.
 7. `addRoute()` in `src/store/routes.js` -> `csrfFetch('/api/routes/', POST JSON)` with `X-CSRFToken`.
 8. Flask: `CSRFProtect` OK -> `@login_required` OK -> `add_route()` in `app/api/route_routes.py` -> `CreateRouteForm()` validates (lengths, required floats) -> `Route(user_id=current_user.id, ...)` -> `db.session.add` + `commit` -> returns `route.to_dict()`.
-9. Thunk: `dispatch(addRouteAction(newRoute))` -> `routesReducer` `ADD_ROUTE` puts it in `routes[id]` -> returns `undefined`.
-10. `NewRoute` sees no errors and calls `history.push('/')`. The home map shows a new marker. Clicking it and the info-window link opens `RouteDisplay`, which uses `DirectionsService` with `route.requestData` to draw the path.
+9. Thunk: `dispatch(addRouteAction(newRoute))` -> the routes slice's `addRouteAction` reducer puts it in `state.routes[id]` -> returns `undefined`.
+10. `NewRoute` sees no errors and calls `navigate('/')`. The home map shows a new marker. Clicking it and the info-window link opens `RouteDisplay`, which uses `DirectionsService` with `route.requestData` to draw the path.
 
 If validation fails, Flask returns 400 `{"errors": ["title : ..."]}`, the thunk returns that array and `NewRoute` shows it in `errors-container`.
 
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant NR as NewRoute.js
+    participant NR as NewRoute.jsx
     participant G as Google Maps JS
     participant UP as uploads.js
     participant RS as store/routes.js
@@ -610,19 +640,19 @@ sequenceDiagram
     F->>F: CSRFProtect, login_required, CreateRouteForm
     F->>DB: INSERT route with user_id = current_user.id
     F-->>RS: route.to_dict()
-    RS->>RS: ADD_ROUTE reducer
-    NR->>U: history.push to home map
+    RS->>RS: addRouteAction (routes slice)
+    NR->>U: navigate to home map
 ```
 
 ### (c) Logging a workout
 
-1. **+ Workout** in `NavBar` -> `/newWorkout` -> `NewWorkout` in `src/components/NewWorkout/NewWorkout.js`. No map here.
+1. **+ Workout** in `NavBar` -> `/newWorkout` -> `NewWorkout` in `src/components/NewWorkout/NewWorkout.jsx`. No map here.
 2. User uploads a photo through `ImageUploadComponent` (same upload path as trace b, step 5) -> `setUrl(url)`.
 3. User fills title, description, type (Walk/Run/Hike/Bike), distance + unit (miles/kilometers), hours and minutes, and submits -> `handleSubmit()` builds `total_time: "<h> hr <m> min"` and `distance: "<n> <unit>"` (strings) and `await dispatch(addWorkout(payload))`.
 4. `addWorkout()` in `src/store/workouts.js` -> `csrfFetch('/api/workouts/', POST JSON)`.
 5. Flask: `CSRFProtect` -> `@login_required` -> `add_workout()` in `app/api/workout_routes.py` -> `CreateWorkoutForm()` validation -> `Workout(user_id=current_user.id, ...)` -> commit -> `workout.to_dict()`.
-6. Thunk dispatches `addWorkoutAction` -> `workoutReducer` `ADD_WORKOUT` copies `workouts` and adds the new one.
-7. `NewWorkout` calls `history.push('/activity')`. `ActivityFeed` dispatches `getAllRoutes`, `getAllWorkouts`, `getAllFriendsActivity`. With the dropdown on "Following" you see only friends' activity (your own new workout is not in it, because `/api/me/friends/activity` only returns friends' items); switch the dropdown to see everyone's, including yours. Clicking the workout opens `WorkoutDisplay`.
+6. Thunk dispatches `addWorkoutAction` -> the workouts slice adds it to `state.workouts` (creating the map if the list was never loaded).
+7. `NewWorkout` calls `navigate('/activity')`. `ActivityFeed` dispatches `getAllRoutes`, `getAllWorkouts`, `getAllFriendsActivity`. With the dropdown on "Following" you see only friends' activity (your own new workout is not in it, because `/api/me/friends/activity` only returns friends' items); switch the dropdown to see everyone's, including yours. Clicking the workout opens `WorkoutDisplay`.
 
 ---
 
@@ -631,29 +661,32 @@ sequenceDiagram
 | Symptom | Look at | Why |
 |---|---|---|
 | **400 "CSRF token missing or invalid"** on any save | `react-app/src/store/csrf.js`, the thunk making the call, DevTools > Application > Cookies | The request was made with plain `fetch` instead of `csrfFetch`, or there is no `csrf_token` cookie yet (load any `/api` GET first), or `SECRET_KEY` changed so the session's token no longer matches. Handler: `handle_csrf_error` in `app/__init__.py`. |
-| **Map stays on "Loading...." or is grey / "For development purposes only"** | `react-app/.env.local`, `src/config.js`, browser console, Google Cloud Console | `REACT_APP_GOOGLE_MAPS_API_KEY` missing (console warning), dev server not restarted after adding it, key restricted to the wrong referrer, Maps JavaScript API not enabled, or billing off. |
-| **Route page map has no path line** | `RouteDisplay.js` `directionsCallback`, Google Cloud | Directions API not enabled for the key, or the request failed (status not `OK`). |
-| **Distance is empty when creating a route** | `NewRoute.js` `DistanceMatrixService` callback | Only runs when start, end and travel type are all set; Distance Matrix API must be enabled. |
-| **Activity feed has no map thumbnails** | `ActivityFeed.js` first `useEffect` | The browser fetch to the Directions web service is CORS-blocked / rejected for referrer-restricted keys. Known issue, fixed by A28. |
+| **Map stays on "Loading...." or is grey / "For development purposes only"** | `react-app/.env.local`, `src/config.js`, browser console, Google Cloud Console | `VITE_GOOGLE_MAPS_API_KEY` missing or still named `REACT_APP_...` (console warning), dev server not restarted after adding it, key restricted to the wrong referrer, Maps JavaScript API not enabled, or billing off. |
+| **Route page map has no path line** | `RouteDisplay.jsx` `directionsCallback`, Google Cloud | Directions API not enabled for the key, or the request failed (status not `OK`). |
+| **Distance is empty when creating a route** | `NewRoute.jsx` `DistanceMatrixService` callback | Only runs when start, end and travel type are all set; Distance Matrix API must be enabled. |
+| **Activity feed has no map thumbnails** | `ActivityFeed.jsx` first `useEffect` | The browser fetch to the Directions web service is CORS-blocked / rejected for referrer-restricted keys. Known issue, fixed by A28. |
 | **403 on edit or delete** | the `update_*` / `delete_*` view in `app/api/*_routes.py` | You are not the owner (`record.user_id != current_user.id`). Expected behavior since A3/A8. |
 | **401 on every API call** | session cookie, `login.login_view`, `SECRET_KEY` | Not logged in, cookie expired/cleared, or `SECRET_KEY` changed (all old sessions become invalid). |
-| **Blank page after refreshing `/routes/5`** | `App.js` (`loaded`), `RouteDisplay.js`, Redux logger in console | `App` renders nothing until `authenticate()` finishes; the page returns `null` until `currentRoute` loads. If the API errors (e.g. 404 route), it stays blank. In production, also check that `react-app/build` exists so `react_root` can serve `index.html`. |
+| **Blank page after refreshing `/routes/5`** | `App.jsx` (`loaded`), `RouteDisplay.jsx`, Redux logger in console | `App` renders nothing until `authenticate()` finishes; the page returns `null` until `currentRoute` loads. If the API errors (e.g. 404 route), it stays blank. In production, also check that `react-app/dist` exists (`npm run build`) so `react_root` can serve `index.html`. |
 | **"Unexpected token < in JSON"** in the console | the URL being fetched; `react_root` in `app/__init__.py` | A GET to an `/api/...` URL that no blueprint defines is caught by the catch-all `react_root` and answered with `index.html` (HTML, status 200 when the React build exists; an HTML error page in development without a build), which `response.json()` cannot parse. Check for typos and trailing slashes (`/api/routes/` list vs `/api/routes/5`). |
 | **405 Method Not Allowed** | the blueprint file | The URL exists but not for that method, e.g. `GET /api/workouts/<id>/comments` (only POST exists). |
 | **400 with a list like "title : Field cannot be longer than 30 characters."** | `app/forms/*.py` | Form validation; the frontend shows these via the thunk's returned `errors`. |
-| **`flask seed all` fails with UNIQUE constraint** | `app/seeds/` | Data already exists. Run `flask seed undo && flask seed all`, or delete `app/dev.db` and `flask db upgrade` again. |
-| **`flask seed all` fails with foreign key / wrong owner data** | `app/seeds/routes.py` etc. | Seeds hard-code `user_id` 1-5; ids are only 1-5 on a freshly reset table. |
+| **`flask seed all` prints "Database already has data. Skipping seed."** | `app/seeds/__init__.py` | Working as designed (A0): it only seeds an empty database. Locally, `flask seed all --reset` wipes and re-seeds. |
+| **`flask seed all --reset` says it is disabled in production** | `APP_ENV`, `app/seeds/__init__.py` `refuse_in_production()` | `APP_ENV` (or `FLASK_ENV`) is `production`. Resetting is for local databases only. |
 | **App will not start: "DATABASE_URL is not set" / "SECRET_KEY is missing" / "Unknown APP_ENV"** | `.env`, `app/config.py`, `app/__init__.py` | The startup guards from A1/A11 doing their job. |
 | **`no such table` or `no such column`** | `migrations/versions/`, `flask db current` | Migrations not applied. Run `flask db upgrade`. |
 | **Image upload fails** | `app/s3_helpers.py`, `.env` (`S3_BUCKET`, `AWS_REGION`), `~/.aws` | "Unable to locate credentials" = no AWS credentials; 400 "not a valid image" = Pillow rejected it; 413 = over 5 MB; URL returns 403 = bucket policy for `uploads/*` missing. |
-| **Comment added on a workout appears on a route** | `components/Comments/Comments.js`, `AddCommentForm.js` | Known bug: shared component always uses route comment endpoints (section 7.7). |
-| **`npm start` crashes with `ERR_OSSL_EVP_UNSUPPORTED`** | Node version | CRA 4 + Node 17+. Use `NODE_OPTIONS=--openssl-legacy-provider`. |
+| **Comment added on a workout appears on a route** | `components/Comments/Comments.jsx`, `AddCommentForm.jsx` | Known bug: shared component always uses route comment endpoints (section 7.7). |
+| **`npm run dev` / `npm ci` fails with an engine or syntax error** | Node version (`node -v`) | Vite 8 needs Node 20.19+ or 22.12+ (`engines` in `package.json`). |
+| **Console: "A state mutation was detected" / "non-serializable value"** | the component or thunk named in the stack trace | Redux Toolkit's development checks (A21): some code changed Redux state outside a reducer, or put a non-JSON value (e.g. a `Response`) into the store. Copy the object (`{...obj}`) or keep the value in component state. |
+| **Console: "Loader must not be called again with different options"** | `context/GoogleMaps.jsx` | Something else called `useJsApiLoader`/`useLoadScript` with other options. Only `GoogleMapsProvider` may load Maps; add libraries to its `LIBRARIES` constant. |
+| **`gunicorn app:app` fails ("Failed to find attribute 'app'")** | start command | Since A16 there is no module-level `app`; use `gunicorn "app:create_app()"`. |
 
 General debugging tools: the **redux-logger** output in the browser console (every action with before/after state), DevTools **Network** tab (request headers, status, JSON body), the Flask terminal (tracebacks, and every SQL statement while `SQLALCHEMY_ECHO` is on), and `http://localhost:5000/api/docs`.
 
 ---
 
-## 10. What changed in Batch 1 and what is coming
+## 10. What changed in Batches 1 and 2 and what is coming
 
 **Batch 1 (A1-A15, done on `modernize`)** - security and bug fixes on the existing stack. Full details, file lists and verification steps are in `CHANGES.md`.
 
@@ -675,11 +708,24 @@ General debugging tools: the **redux-logger** output in the browser console (eve
 | A14 | Flat `<Switch>`, `ProtectedRoute` redirect, NotFound page, working preload |
 | A15 | Migration: `follows` composite PK + cascade, `workouts.route_id` dropped, timestamp defaults |
 
-Open questions from Batch 1 are at the top of `CHANGES.md` (S3 env vars on any live deployment, the missing workout-comments GET, `APP_ENV` on the host, testing A15 on a real Postgres copy).
+**Batch 2 (A0, A16-A23, done on `modernize`)** - safe seeding and the modern stack. Details in the Batch 2 part of `CHANGES.md`.
+
+| Item | In one line |
+|---|---|
+| A0 | `flask seed all` only seeds an empty DB; `--reset` (local only, refused in production) deletes children before parents; no hard-coded ids |
+| A16 | `create_app()` factory + `app/extensions.py`; one `requirements.txt` (Pipfile removed); Python 3.12; gunicorn runs `"app:create_app()"` |
+| A17 | Flask 3.1, Werkzeug 3.1, Flask-Login 0.6, Flask-WTF 1.3, Flask-Migrate 4, gunicorn 27, `psycopg2-binary`; favicon bug fixed; pip-audit 142 -> 0 |
+| A18 | SQLAlchemy 2.0 + Flask-SQLAlchemy 3.1: `db.session.get` / `db.select()`; `text()` + commit in `migrations/env.py`; UTC timestamps |
+| A19 | Create React App -> Vite 8 (dev proxy, `dist/` build, `.jsx` files, `VITE_GOOGLE_MAPS_API_KEY`); npm audit 201 -> 4 |
+| A20 | React 19 (`createRoot`), react-redux 9, testing libraries updated; StrictMode-safe preload; npm audit -> 0 |
+| A21 | Redux Toolkit: `configureStore` + one `createSlice` per store file; thunks unchanged |
+| A22 | React Router 7: `<Routes>`/`element`, `ProtectedRoute` as a layout route, `useNavigate`, `NavLink end` |
+| A23 | Google Maps loaded once by `GoogleMapsProvider` (`useJsApiLoader`, constant `libraries`) |
+
+Open questions from both batches are at the top of `CHANGES.md` (S3 env vars on any live deployment, the missing workout-comments GET, `APP_ENV` on the host, testing the migrations on a real Postgres copy).
 
 **Coming next** (`MODERNIZATION_PLAN.md`, 58 items total):
 
-- **Batch 2 - upgrades:** app factory + Python 3.12 (A16), Flask 3 (A17), SQLAlchemy 2.0 (A18, includes wrapping the seed TRUNCATE strings in `text()`), Vite instead of CRA (A19), React 19 (A20), optional Redux Toolkit (A21), React Router v7 (A22), Maps library update (A23).
 - **Performance:** slim serializers instead of the giant `User.to_dict()` (A24), fix N+1 queries (A25), indexes (A26), pagination (A27), server-side polylines (A28), stop the `RouteDisplay` refetch loop (A29), numeric distance/time (A31).
 - **UI/UX:** mobile layout, accessibility, design refresh, loading/empty/error states (A32-A36).
 - **Docker and AWS:** Dockerfile, Compose with Postgres, EC2 + CloudFront + S3 with Terraform, SSM secrets, backups, deploy pipeline (A37-A48).
@@ -689,10 +735,10 @@ Open questions from Batch 1 are at the top of `CHANGES.md` (S3 env vars on any l
 ---
 ## 11. Interview prep
 
-Be honest about what you built in 2023 versus what was fixed in the 2026 modernization (Batch 1, done with AI assistance and reviewed by you). Interviewers respond well to "here is a bug in my old code, why it happened, and how it was fixed" - as long as you can explain every line yourself.
+Be honest about what you built in 2023 versus what was fixed and upgraded in the 2026 modernization (Batches 1 and 2, done with AI assistance and reviewed by you). Interviewers respond well to "here is a bug in my old code, why it happened, and how it was fixed" - as long as you can explain every line yourself.
 
 **1. Walk me through the architecture.**
-It is a single-page React app with Redux for state, talking to a Flask JSON API. Components dispatch thunks in `react-app/src/store/`, the thunks call `/api/...` endpoints, and Flask blueprints in `app/api/` validate with Flask-WTF forms and persist with SQLAlchemy models to SQLite locally or Postgres in production. In production Flask also serves the built React files, so frontend and API share one origin; in development the CRA proxy gives the same effect.
+It is a single-page React app with Redux for state, talking to a Flask JSON API. Components dispatch thunks in `react-app/src/store/`, the thunks call `/api/...` endpoints, and Flask blueprints in `app/api/` validate with Flask-WTF forms and persist with SQLAlchemy models to SQLite locally or Postgres in production. In production Flask also serves the built React files, so frontend and API share one origin; in development the Vite dev-server proxy gives the same effect. The backend is built by an app factory, `create_app()`, and the frontend store is Redux Toolkit.
 
 **2. How does authentication work?**
 Cookie-based sessions with Flask-Login. `login_user()` stores the user id in Flask's signed, HttpOnly session cookie, and the `user_loader` turns it back into `current_user` on each request. The frontend restores the session on load by calling `GET /api/auth/`, and `@login_required` protects every data endpoint; `ProtectedRoute` on the frontend is only for user experience.
@@ -719,14 +765,17 @@ A self-referential many-to-many relationship on `User` through a `follows` assoc
 The biggest one is serialization: `User.to_dict()` nests every route, workout and comment, and `/api/auth/` does that for every other user too, so each page load gets close to the whole database. I would add slim serializers, eager loading to fix N+1 queries, indexes on foreign keys and pagination. I would also compute route polylines once on the server instead of calling the Directions service from the browser, and store distance and time as numbers.
 
 **10. Tell me about a bug you found and fixed.**
-The add-friend view had its "already friends?" check and its insert both inside a loop over the user's existing friends, so a new user with zero friends never entered the loop, the view returned `None` and Flask raised a 500. The fix (A7) queries the relationship directly with `_is_follower()` and returns proper 400/404/409 codes. Another good one: the `App.js` preload checked `user` from the first render, which is always `null` due to closures, so the preload never ran; `authenticate()` now returns the user and `App` awaits it.
+The add-friend view had its "already friends?" check and its insert both inside a loop over the user's existing friends, so a new user with zero friends never entered the loop, the view returned `None` and Flask raised a 500. The fix (A7) queries the relationship directly with `_is_follower()` and returns proper 400/404/409 codes. Another good one: the `App.jsx` preload checked `user` from the first render, which is always `null` due to closures, so the preload never ran; `authenticate()` now returns the user and `App` awaits it.
+
+**11. How did you modernize the stack without breaking it?**
+One small, separately revertible commit per step, in dependency order: app factory and Python 3.12 first, then Flask 3, then SQLAlchemy 2.0; on the frontend Vite, React 19, React Router 7, a single Google Maps loader and finally Redux Toolkit. Before each step a snapshot of ~90 API responses (and, for the frontend, a jsdom render of every page plus a run of every Redux thunk) was recorded and compared afterwards, so "behaves the same" was checked, not assumed. Breaking changes for developers (gunicorn command, `VITE_` env var, `dist/` folder, Python 3.12) are listed in `CHANGES.md`. A0 also fixed a real data-loss risk: the old deploy re-ran a seed command that truncated every production table.
 
 ---
 
 ## 12. Glossary
 
 - **Blueprint** - a Flask object that groups related routes (e.g. `route_routes` in `app/api/route_routes.py`) and is mounted under a URL prefix with `app.register_blueprint(..., url_prefix='/api/routes')`.
-- **ORM (Object-Relational Mapper)** - lets you work with database rows as Python objects. SQLAlchemy is the ORM; `Route.query.get(5)` becomes `SELECT ... WHERE id = 5`.
+- **ORM (Object-Relational Mapper)** - lets you work with database rows as Python objects. SQLAlchemy is the ORM; `db.session.get(Route, 5)` becomes `SELECT ... WHERE id = 5`.
 - **Model** - a Python class mapped to a table (`class Route(db.Model)`).
 - **Relationship** - an ORM attribute that follows a foreign key (`route.comments`, `comment.users`).
 - **Association table** - a table that only links two other tables for a many-to-many relationship (`follows`).
@@ -738,25 +787,28 @@ The add-friend view had its "already friends?" check and its insert both inside 
 - **CSRF (Cross-Site Request Forgery)** - another website tricking your browser into sending a request to Aktiv with your cookies. Blocked by the `X-CSRFToken` header check.
 - **CORS (Cross-Origin Resource Sharing)** - browser rules for one origin reading responses from another. Not needed here because frontend and API share an origin.
 - **SPA (single-page app)** - one HTML page; React Router swaps components based on the URL without full page loads.
-- **Proxy (CRA)** - the `"proxy"` setting in `package.json` that forwards unknown requests from the dev server (3000) to Flask (5000).
+- **Vite** - the frontend build tool and dev server (replaced Create React App in A19): `npm run dev` serves the app with instant reloads, `npm run build` writes optimized files to `dist/`.
+- **Proxy (Vite)** - `server.proxy` in `vite.config.js` forwards `/api` requests from the dev server (3000) to Flask (5000).
+- **App factory** - a function (`create_app()`) that builds and returns a configured Flask app instead of creating one global app at import time.
 - **Redux store** - one JavaScript object holding app state (`session`, `routes`, `workouts`, ...).
-- **Action** - a plain object describing what happened (`{ type: 'session/SET_USER', payload: user }`).
+- **Action** - a plain object describing what happened (`{ type: 'session/setUser', payload: user }`).
+- **Redux Toolkit / `createSlice` / Immer** - the official Redux toolset. `createSlice` generates actions and a reducer from a few functions; Immer lets those functions "mutate" a draft while producing a new immutable state; `configureStore` sets up thunk, DevTools and dev-time safety checks.
 - **Reducer** - a pure function `(state, action) => newState` that decides how state changes.
 - **Thunk** - a function returned by an action creator that redux-thunk runs with `dispatch`; used for async work like `fetch` (`login()`, `addRoute()`).
 - **Selector / `useSelector`** - reads a piece of Redux state inside a component.
 - **`dispatch` / `useDispatch`** - sends an action (or thunk) to the store.
-- **Protected route** - a route component that only renders for logged-in users (`ProtectedRoute.js`).
-- **Portal / modal** - `ReactDOM.createPortal` renders a component into a different DOM node (`context/Modal.js`).
+- **Protected route / layout route / `<Outlet />`** - `ProtectedRoute.jsx` is a parent route without a path; it renders its matched child page in `<Outlet />` only for logged-in users.
+- **Portal / modal** - `ReactDOM.createPortal` renders a component into a different DOM node (`context/Modal.jsx`).
 - **S3 (Simple Storage Service)** - AWS file storage; uploads go to `uploads/` in a bucket.
 - **boto3** - the AWS SDK for Python.
 - **IAM role** - AWS permissions attached to a server so no access keys are stored in files.
 - **Bucket policy** - JSON rules on an S3 bucket, e.g. "anyone may read `uploads/*`".
 - **Google Maps JavaScript API** - the browser library that draws maps, markers and info windows.
 - **Directions / Distance Matrix** - Google services that compute a route between points / the distance and travel time between points.
-- **Polyline (encoded polyline)** - a compact string encoding of a list of lat/lng points that describes a path; used in the static map URL in `ActivityFeed.js` (`path=enc:...`).
+- **Polyline (encoded polyline)** - a compact string encoding of a list of lat/lng points that describes a path; used in the static map URL in `ActivityFeed.jsx` (`path=enc:...`).
 - **Static Maps API** - returns a map as a plain image from a URL.
 - **API key restriction** - limiting a Google key to certain websites (referrers) or IPs and to certain APIs, so a leaked key cannot be abused.
 - **Environment variable** - configuration outside the code (`SECRET_KEY`, `DATABASE_URL`, `APP_ENV`), loaded from `.env` locally.
 - **N+1 query** - loading a list with one query, then one extra query per item; what the nested `to_dict()` methods cause.
 - **Schema (Postgres)** - a namespace inside a Postgres database; production tables live in `SCHEMA` (Render pattern).
-- **TRUNCATE ... RESTART IDENTITY CASCADE** - Postgres command that empties a table, resets its id counter and empties tables that reference it.
+- **TRUNCATE ... RESTART IDENTITY CASCADE** - Postgres command that empties a table, resets its id counter and empties tables that reference it. The old production seed ran it on every deploy; A0 removed it.
