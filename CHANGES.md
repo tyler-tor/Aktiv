@@ -830,3 +830,10 @@ at the end of this file.
 - **How to verify:** with a Maps key in `.env.local`, open the home map (pins appear, click one for its info window), a route page (start dot and finish ring), Plan a route (place and drag pins) and Edit route. The browser console should show no "google.maps.Marker is deprecated" warning. `grep -rn "<Marker" react-app/src` finds nothing.
   Verified with a fake Google Maps in the jsdom test: 20 pins created and clickable on the home map, 2 on a route page, each removed again when the page unmounts (no leaked pins), and the loader asks for `maps` and `marker` once. Build and lint pass.
 - **Things to watch:** I have no Maps key here, so real pin rendering, dragging and the `DEMO_MAP_ID` fallback were not exercised against Google. `DEMO_MAP_ID` is meant for development; set your own Map ID before launch. A Map ID also moves map styling to the cloud console (client-side `styles` options are ignored).
+
+## Fix — app blank in development ("each middleware provided to configureStore must be a function")
+- **Problem:** `npm run dev` showed only the page background. `store/index.js` did `import logger from 'redux-logger'`. redux-logger is a CommonJS package, and under Vite's dev server its default import is not the middleware function, so Redux Toolkit refused to create the store and React never rendered. Production builds were fine, which is why the Batch 2/3 checks (run against production builds) missed it. Postpix had the same bug and fixed it the same way in P19.
+- **What changed:** use the named export, `import { createLogger } from 'redux-logger'`, and add `createLogger({ collapsed: true })` in development only.
+- **Files:** `react-app/src/store/index.js`
+- **How to verify:** `npm run dev` in `react-app/`, open http://localhost:3000: the login page renders, and the browser console shows collapsed Redux action logs after you log in.
+- **Things to watch:** Redux DevTools covers the same need; redux-logger can be removed later.

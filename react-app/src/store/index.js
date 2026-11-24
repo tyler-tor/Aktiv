@@ -1,5 +1,7 @@
 import { configureStore as configureReduxStore } from '@reduxjs/toolkit';
-import logger from 'redux-logger';
+// redux-logger is CommonJS: under Vite's dev server its default import is not a
+// function, so use the named createLogger export instead.
+import { createLogger } from 'redux-logger';
 import session from './session'
 import usersReducer from './users';
 import commentsReducer from './comments';
@@ -29,7 +31,7 @@ const configureStore = (preloadedState) => {
       import.meta.env.PROD
         ? getDefaultMiddleware()
         // redux-logger prints every action in the browser console (development only).
-        : getDefaultMiddleware().concat(logger),
+        : getDefaultMiddleware().concat(createLogger({ collapsed: true })),
     devTools: !import.meta.env.PROD,
   });
 };
