@@ -1,9 +1,10 @@
 import boto3
 import botocore
 import os
+import io
 import uuid
 
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 # The boto3 client is created on first use (not at import time), and it gets
 # credentials from boto3's default chain instead of S3_KEY/S3_SECRET:
@@ -59,6 +60,47 @@ def detect_image(file):
     finally:
         file.stream.seek(0)
     return IMAGE_FORMATS.get(img_format)
+
+
+# Phone photos are 4000+ pixels wide (several MB) but the app shows them at most
+# ~800 px wide. Bigger uploads are scaled down so pages load faster and storage
+# and bandwidth stay small. Animated GIFs are left alone (resizing would break them).
+MAX_IMAGE_PIXELS = 1600
+
+
+def shrink_image(file, max_px=MAX_IMAGE_PIXELS):
+    """
+    If the image is larger than max_px on its longer side, replace the file's
+    contents with a scaled-down copy in the same format (JPEG quality 85) and
+    apply the EXIF rotation first (a re-saved JPEG loses that tag). Returns
+    True when the file was changed. Any problem leaves the original untouched.
+    """
+    original = file.stream
+    try:
+        original.seek(0)
+        with Image.open(original) as img:
+            img_format = img.format
+            if img_format == 'GIF' or max(img.size) <= max_px:
+                original.seek(0)
+                return False
+            img = ImageOps.exif_transpose(img)
+            img.thumbnail((max_px, max_px), Image.Resampling.LANCZOS)
+            out = io.BytesIO()
+            if img_format == 'JPEG':
+                if img.mode not in ('RGB', 'L'):
+                    img = img.convert('RGB')
+                img.save(out, 'JPEG', quality=85, optimize=True)
+            elif img_format == 'PNG':
+                img.save(out, 'PNG', optimize=True)
+            else:
+                img.save(out, img_format, quality=85)
+        out.seek(0)
+        file.stream = out
+        return True
+    except Exception:
+        file.stream = original
+        original.seek(0)
+        return False
 
 
 def get_unique_filename(filename):

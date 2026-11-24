@@ -680,3 +680,23 @@ at the end of this file.
 - **How to verify:** with a Maps key, open a route page and watch DevTools > Network: at most **one** `directions` request for an old route (none for a route with a stored polyline) and no repeated `/api/routes/` calls; open Edit on your route and type in the title box: no Distance Matrix requests while typing, one when you drag a marker.
   Verified: build OK; jsdom page smoke test (route page requests only `/api/routes/1` and its comments, not the whole route list); a fake-Maps render test shows the home map markers and the new-route map still render. Real Google responses were **not** exercised (no key here).
 - **Things to watch:** The route page's map uses the polyline from the server, so it only matches Google's current roads at the time the route was saved. Re-saving a route (or `flask directions backfill --all`) refreshes it.
+
+## A30 — Frontend bundle and loading
+- **Problem:** One 500 KB JavaScript file (138 KB gzipped) contained every page and the whole Google Maps library, and the Maps script was downloaded even on the login page. After login the app also fetched **every route and workout** before showing anything (nothing needed them any more after A24-A27). Uploaded photos were stored at their full camera size, and nothing told the browser how long it may keep the built files.
+- **What changed:**
+  - **Lazy pages:** every page except login is loaded with `React.lazy` (one small JavaScript file each, with a "Loading..." fallback), so the first visit downloads only what it shows.
+  - **Maps on demand:** `context/GoogleMaps.jsx` no longer imports the Maps library. The first component that calls `useGoogleMaps()` (a map page) triggers a lazy `MapsLoader` (`context/MapsLoader.jsx`), which is the only place that runs `useJsApiLoader` (still exactly one loader, one stable `libraries` array). The Maps library and the Google script are therefore not downloaded on the login page, feed, profiles or workout pages. Main bundle: **500 KB -> 284 KB (138 -> 90 KB gzipped)**.
+  - **No preload:** `App.jsx` only restores the session before rendering; the "fetch all workouts and routes first" step was removed (pages load their own data), so the first screen appears one request earlier.
+  - **Lazy images:** `loading="lazy"` and `decoding="async"` on feed and profile images.
+  - **Smaller uploads:** `shrink_image()` in `app/s3_helpers.py` scales photos whose longer side is over 1600 px down to 1600 px (same format, JPEG quality 85, EXIF rotation applied first); smaller images and animated GIFs are stored untouched; any error keeps the original. A 4000 px phone photo goes from several MB to a few hundred KB.
+  - **Browser caching:** when Flask serves the React build, files under `/assets/` (their names contain a content hash) get `Cache-Control: public, max-age=31536000, immutable`, and HTML (`index.html` and deep links like `/routes/3`) gets `no-cache`. API responses are untouched. (The same rule is needed in CloudFront once A42 exists.)
+- **Files:** `react-app/src/App.jsx`, `react-app/src/context/{GoogleMaps,MapsLoader}.jsx`, `react-app/src/components/{ActivityFeed/ActivityFeed,User}.jsx`, `app/s3_helpers.py`, `app/api/img_routes.py`, `app/__init__.py`
+- **How to verify:**
+  1. `npm run build`: the output lists a dozen small page files next to a main `index-*.js` of about 284 KB.
+  2. Open the login page with DevTools > Network: no `maps.googleapis.com` request and no `MapsLoader` file; open `/` after logging in: the Maps script appears once.
+  3. Upload a large photo on "+ Workout": the stored image is at most 1600 px wide.
+  Verified: build sizes as above; jsdom smoke test (all pages render through the lazy boundary, route list is requested by the home page only) and the fake-Maps test (still one loader call per page, one `libraries` array); upload test (JPEG/PNG/WebP 3200x2000 -> 1600x1000 same format, 800x600 untouched, EXIF-rotated phone photo comes out upright, animated GIF byte-identical); cache-header test with a temporary `dist/` (assets immutable, index.html and a deep link `no-cache`, API not marked).
+- **Things to watch:**
+  - In `npm run dev` each page is its own module anyway; the savings are visible in the production build.
+  - Existing images already in S3 are not shrunk (only new uploads).
+  - The seeded demo images still point at the old third-party bucket until A36.

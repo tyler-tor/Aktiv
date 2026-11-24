@@ -1,68 +1,40 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { Suspense, lazy, useState, useEffect } from 'react';
 import { BrowserRouter, Routes as RouterRoutes, Route, Navigate } from 'react-router';
 import { useDispatch, useSelector } from 'react-redux';
-import ActivityFeed from './components/ActivityFeed';
 import LoginForm from './components/auth/LoginForm';
-import SignUpForm from './components/auth/SignUpForm';
-import HomePage from './components/HomePage/HomePage';
-import Routes from './components/UserRoutes/Routes';
-import RouteDisplay from './components/RouteDisplay/RouteDisplay';
 import NavBar from './components/NavBar';
 import Footer from './components/Footer';
 import ProtectedRoute from './components/auth/ProtectedRoute';
-import UsersList from './components/UsersList';
-import User from './components/User';
 import NotFound from './components/NotFound';
 import { authenticate } from './store/session';
-import { getAllRoutes } from './store/routes';
-import { getAllWorkouts } from './store/workouts';
-import WorkoutDisplay from './components/WorkoutDisplay/WorkoutDisplay';
-import NewRoute from './components/NewMap/NewRoute';
-import NewWorkout from './components/NewWorkout/NewWorkout';
+
+// Pages are loaded on demand (one JavaScript file each), so the first visit only
+// downloads the page it needs; the Google Maps code ends up only in the map pages' files.
+const ActivityFeed = lazy(() => import('./components/ActivityFeed/ActivityFeed'));
+const HomePage = lazy(() => import('./components/HomePage/HomePage'));
+const Routes = lazy(() => import('./components/UserRoutes/Routes'));
+const RouteDisplay = lazy(() => import('./components/RouteDisplay/RouteDisplay'));
+const UsersList = lazy(() => import('./components/UsersList'));
+const User = lazy(() => import('./components/User'));
+const WorkoutDisplay = lazy(() => import('./components/WorkoutDisplay/WorkoutDisplay'));
+const NewRoute = lazy(() => import('./components/NewMap/NewRoute'));
+const NewWorkout = lazy(() => import('./components/NewWorkout/NewWorkout'));
+const SignUpForm = lazy(() => import('./components/auth/SignUpForm'));
 
 function App() {
   const [loaded, setLoaded] = useState(false);
   const user = useSelector((state) => state.session.user);
-  const userId = user ? user.id : null;
   const dispatch = useDispatch();
-  // Which user we already preloaded routes/workouts for, and that preload's
-  // promise (avoids refetching every time the session object is refreshed,
-  // e.g. after adding a friend). Sharing the promise matters in development:
-  // React 18+ StrictMode runs effects twice, and the second run must wait for
-  // the same preload instead of rendering the pages before the data is there.
-  const preloadedFor = useRef(null);
 
-  const preload = useCallback((id) => {
-    if (preloadedFor.current && preloadedFor.current.id === id) {
-      return preloadedFor.current.promise;
-    }
-    const promise = Promise.all([dispatch(getAllWorkouts()), dispatch(getAllRoutes())]);
-    preloadedFor.current = { id, promise };
-    return promise;
-  }, [dispatch]);
-
-  // First load: restore the session, preload data if logged in, then render.
-  // (The old code checked `user` from the first render here, which is always
-  // null, so the preload never ran.)
+  // First load: restore the session (am I logged in?), then render. Pages load
+  // their own data: the old "preload every route and workout up front" step
+  // delayed the first screen and nothing needed it any more (A24-A27).
   useEffect(() => {
     (async () => {
-      const sessionUser = await dispatch(authenticate());
-      if (sessionUser) {
-        await preload(sessionUser.id);
-      }
+      await dispatch(authenticate());
       setLoaded(true);
     })();
-  }, [dispatch, preload]);
-
-  // Later logins (login form, sign-up, demo button) preload too; logout resets.
-  useEffect(() => {
-    if (!loaded) return;
-    if (userId) {
-      preload(userId);
-    } else {
-      preloadedFor.current = null;
-    }
-  }, [loaded, userId, preload]);
+  }, [dispatch]);
 
   if (!loaded) {
     return null;
@@ -77,6 +49,7 @@ function App() {
   return (
     <BrowserRouter>
       <NavBar />
+      <Suspense fallback={<div className='page-loading' role='status'>Loading...</div>}>
       <RouterRoutes>
         <Route path='/' element={user ? <HomePage /> : <LoginForm />} />
         <Route path='/sign-up' element={user ? <Navigate to='/' replace /> : <SignUpForm />} />
@@ -93,6 +66,7 @@ function App() {
         </Route>
         <Route path='*' element={<NotFound />} />
       </RouterRoutes>
+      </Suspense>
       <Footer />
     </BrowserRouter>
   );

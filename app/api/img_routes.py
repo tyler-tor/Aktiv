@@ -1,7 +1,7 @@
 from flask import Blueprint, request
 from flask_login import login_required
 from app.s3_helpers import (upload_file_to_s3, allowed_file,
-                            get_unique_filename, detect_image)
+                            get_unique_filename, detect_image, shrink_image)
 
 img_routes = Blueprint('img', __name__)
 
@@ -24,6 +24,9 @@ def upload_image():
     if detected is None:
         return {"errors": "file is not a valid image"}, 400
     ext, content_type = detected
+
+    # Scale down very large photos before storing them (A30)
+    shrink_image(image)
 
     # Name the S3 object after the *detected* type, not the user's filename.
     image.filename = get_unique_filename(f'upload.{ext}')

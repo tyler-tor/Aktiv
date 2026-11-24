@@ -1,6 +1,6 @@
 import os
 
-from flask import Flask, send_from_directory
+from flask import Flask, request, send_from_directory
 from flask_wtf.csrf import CSRFError, generate_csrf
 
 from .config import APP_ENV, get_config, check_secret_key
@@ -94,6 +94,22 @@ def register_hooks(app):
             # Must be readable by JavaScript so the frontend can copy it into the
             # X-CSRFToken header. (The session cookie itself stays httponly.)
             httponly=False)
+        return response
+
+    @app.after_request
+    def cache_headers(response):
+        """
+        Browser caching of the React build (when Flask serves it):
+        files in /assets/ have a content hash in their name (index-3f9a1c.js), so
+        they can be cached for a year and a new build simply has new names;
+        index.html (and deep links such as /routes/3, which also return it) must
+        always be re-checked so users get the newest build.
+        """
+        if response.status_code == 200 and not request.path.startswith('/api/'):
+            if request.path.startswith('/assets/'):
+                response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+            elif response.mimetype == 'text/html':
+                response.headers['Cache-Control'] = 'no-cache'
         return response
 
 

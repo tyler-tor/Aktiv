@@ -48,7 +48,7 @@ function User() {
     <div className='profile-container'>
       <div className='user-info'>
         <div className='user-propic-container'>
-          <img src={user.profilePicture}
+          <img loading='lazy' decoding='async' src={user.profilePicture}
             className='user-pic'
             alt='User' />
           <h1 className='ui-item'>
@@ -65,7 +65,7 @@ function User() {
               <div className='user-page-route-container'
                 key={`${route.id}${route.title}`}>
                 <div className='user-route-pic-container'>
-                  <img src={route.imageUrl}
+                  <img loading='lazy' decoding='async' src={route.imageUrl}
                     alt='route'
                     className='user-route-pic' />
                 </div>
@@ -106,7 +106,7 @@ function User() {
             return (
               <div className='nonfriend-info-container'
                 key={friend.userId}>
-                <img src={friend.profilePicture} alt='non friend pic'
+                <img loading='lazy' decoding='async' src={friend.profilePicture} alt='non friend pic'
                   className='non-friend-pic' />
                 <NavLink className='non-friend-text'
                   to={`/users/${friend.id}`}>{friend.username}</NavLink>

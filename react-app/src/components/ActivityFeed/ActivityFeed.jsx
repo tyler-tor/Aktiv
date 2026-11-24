@@ -27,7 +27,7 @@ function ActivityFeed() {
         <div className='activity-feed-container'>
             <div className='curruser-container'>
                 <div className='propic-wrapper'>
-                    <img className='propic' src={currUser.profilePicture} alt='user-pic' />
+                    <img loading='lazy' decoding='async' className='propic' src={currUser.profilePicture} alt='user-pic' />
                 </div>
                 <div className='curruser-info'>
                     <ul className='cui-list'>
@@ -58,7 +58,7 @@ function ActivityFeed() {
                                 return (
                                     <div className='friend-list'
                                     key={friend.userId}>
-                                        <img className='friend-propic'
+                                        <img loading='lazy' decoding='async' className='friend-propic'
                                             src={friend.profilePicture}
                                             alt='friend-pic' />
                                         <NavLink
@@ -121,7 +121,7 @@ function ActivityFeed() {
                                     <div className='post-owner-info'>
                                         <a className='owner-propic-wrapper'
                                             href={`/users/${activity.userId}`}>
-                                            <img src={activity.ownerInfo.profilePicture} alt='owner'
+                                            <img loading='lazy' decoding='async' src={activity.ownerInfo.profilePicture} alt='owner'
                                                 className='owner-pro-pic'
                                             />
                                             <div className='oi-text'>
@@ -137,7 +137,7 @@ function ActivityFeed() {
                                 <div className='post-info-container'>
                                     <a className='img-container'
                                         href={`/workouts/${activity.id}`}>
-                                        <img src={activity.imageUrl} alt='workout'
+                                        <img loading='lazy' decoding='async' src={activity.imageUrl} alt='workout'
                                             className='act-workout-pic'
                                         />
                                     </a>
@@ -166,7 +166,7 @@ function ActivityFeed() {
                                     <div className='post-owner-info'>
                                         <a className='owner-propic-wrapper'
                                             href={`/users/${activity.userId}`}>
-                                            <img src={activity.ownerInfo.profilePicture} alt='owner'
+                                            <img loading='lazy' decoding='async' src={activity.ownerInfo.profilePicture} alt='owner'
                                                 className='owner-pro-pic'
                                             />
                                         <div className='oi-text'>
@@ -199,7 +199,7 @@ function ActivityFeed() {
                     return (
                         <div className='nonfriend-info-container'
                             key={non.id}>
-                            <img src={non.profilePicture} alt='non friend pic'
+                            <img loading='lazy' decoding='async' src={non.profilePicture} alt='non friend pic'
                             className='non-friend-pic' />
                             <NavLink className='non-friend-text'
                             to={`/users/${non.id}`}>{non.username}</NavLink>
