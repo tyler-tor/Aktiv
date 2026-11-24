@@ -1,4 +1,4 @@
-from .db import db, environment, SCHEMA, add_prefix_for_prod, utcnow
+from .db import db, environment, SCHEMA, add_prefix_for_prod, utcnow, iso
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 
@@ -55,18 +55,37 @@ class User(db.Model, UserMixin):
     def check_password(self, password):
         return check_password_hash(self.password, password)
 
-    def to_dict(self):
+    def to_summary(self):
+        """The small public view of a user (lists, owner info, friends)."""
         return {
             'id': self.id,
             'username': self.username,
-            'email': self.email,
             'firstName': self.first_name,
             'lastName': self.last_name,
             'profilePicture': self.profile_picture,
-            'createdAt': self.created_at.strftime('%B %Y'),
-            'updatedAt': self.updated_at.strftime('%A %B %Y'),
-            'routes': [route.to_dict() for route in self.routes],
-            'workouts': [workout.to_dict() for workout in self.workouts],
-            'comments': [comment.to_dict() for comment in self.comments],
-            'friends': [{'userId': follower.id, 'username': follower.username, 'profilePicture': follower.profile_picture} for follower in self.followers]
         }
+
+    def to_friend(self):
+        """Summary used in friends lists. `userId` is kept for the frontend."""
+        return {**self.to_summary(), 'userId': self.id}
+
+    def to_dict(self, private=False, include_activity=False):
+        """
+        Profile view of a user. It no longer embeds the user's routes,
+        workouts, comments (each with their comments) by default: that made
+        /api/auth/ and the user list grow with the whole database.
+
+        private=True   adds the email (only for the logged-in user's own data)
+        include_activity=True adds the user's routes and workouts (profile page)
+        """
+        data = {
+            **self.to_summary(),
+            'createdAt': iso(self.created_at),
+            'friends': [friend.to_friend() for friend in self.followers],
+        }
+        if private:
+            data['email'] = self.email
+        if include_activity:
+            data['routes'] = [route.to_dict() for route in sorted(self.routes, key=lambda r: r.id)]
+            data['workouts'] = [workout.to_dict() for workout in sorted(self.workouts, key=lambda w: w.id)]
+        return data

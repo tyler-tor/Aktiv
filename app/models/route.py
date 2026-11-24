@@ -1,4 +1,4 @@
-from .db import db, environment, SCHEMA, add_prefix_for_prod, utcnow
+from .db import db, environment, SCHEMA, add_prefix_for_prod, utcnow, iso
 
 
 class Route(db.Model):
@@ -45,50 +45,23 @@ class Route(db.Model):
         return self
 
     def to_dict(self):
+        """
+        The one route shape used by every endpoint. Comments are NOT embedded
+        (fetch them from /api/routes/<id>/comments); only their count is, and
+        the owner is the small public summary (no email).
+        """
         return {
             'id': self.id,
             'userId': self.user_id,
             'title': self.title,
             'description': self.description,
             'imageUrl': self.image_url,
-            'startingPoint': {
-                'lat': self.start_lat,
-                'lng': self.start_lng
-            },
-            'endingPoint': {
-                'lat': self.end_lat,
-                'lng': self.end_lng
-            },
+            'startingPoint': {'lat': self.start_lat, 'lng': self.start_lng},
+            'endingPoint': {'lat': self.end_lat, 'lng': self.end_lng},
             'travelMode': self.traveling_mode,
-            'requestData': {
-                'origin': {
-                    'lat': self.start_lat,
-                    'lng': self.start_lng
-                },
-                'optimizeWaypoints': self.optimize_waypoints,
-                'waypoints': [{
-                    'location': {
-                        'lat': self.start_lat,
-                        'lng': self.start_lng
-                    },
-                    'stopover': self.stopover
-                }],
-                'destination': {
-                    'lat': self.end_lat,
-                    'lng': self.end_lng
-                },
-                'travelMode': self.traveling_mode
-            },
-            'staticMap': f'https://maps.googleapis.com/maps/api/staticmap?markers={self.start_lat},{self.start_lng}|{self.end_lat},{self.end_lng}&size=300x300&maptype=roadmap',
             'distance': self.distance,
-            'createdAt': self.created_at,
-            'updatedAt': self.updated_at,
-            'comments': [comment.to_dict() for comment in self.comments],
-            'ownerInfo': {
-                'profilePicture': self.users.profile_picture,
-                'firstName': self.users.first_name,
-                'lastName': self.users.last_name,
-                'email': self.users.email,
-                'username': self.users.username
-            }
+            'createdAt': iso(self.created_at),
+            'updatedAt': iso(self.updated_at),
+            'commentCount': self.comment_count,
+            'ownerInfo': self.users.to_summary(),
         }

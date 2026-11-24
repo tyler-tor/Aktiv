@@ -20,6 +20,18 @@ def add_prefix_for_prod(attr):
         return attr
 
 
+def iso(value):
+    """
+    A stored (naive, UTC) timestamp as an ISO 8601 string with a trailing "Z",
+    e.g. "2026-11-24T09:30:00Z". The API used to return Flask's default
+    RFC 822 date ("Tue, 24 Nov 2026 09:30:00 GMT"), which cannot be sorted as
+    text and is awkward to parse in JavaScript.
+    """
+    if value is None:
+        return None
+    return value.replace(microsecond=0).isoformat() + 'Z'
+
+
 def utcnow():
     """
     The current time in UTC, used as the Python-side default for created_at /

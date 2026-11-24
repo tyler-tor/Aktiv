@@ -83,9 +83,6 @@ function WorkoutDisplay() {
                     <li className='last-name'>
                         {workout?.ownerInfo.lastName}
                     </li>
-                    <li className='email'>
-                        {workout?.ownerInfo.email}
-                    </li>
                 </ul>
             </div>
             <div className='comm-box-container'>

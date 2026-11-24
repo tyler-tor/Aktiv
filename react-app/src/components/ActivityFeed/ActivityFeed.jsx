@@ -6,6 +6,7 @@ import { getAllWorkouts } from '../../store/workouts';
 import { NavLink } from 'react-router';
 import './ActivityFeed.css';
 import { GOOGLE_MAPS_API_KEY } from '../../config';
+import { formatDate, formatMonthYear } from '../../utils/format';
 
 function ActivityFeed() {
     const dispatch = useDispatch();
@@ -92,10 +93,10 @@ function ActivityFeed() {
                             <strong>
                                 Member since:
                             </strong>
-                            {currUser.createdAt}
+                            {formatMonthYear(currUser.createdAt)}
                         </li>
                         <li className='userinfo-item'>
-                            Activity: {currUser.routes.length + currUser.workouts.length}
+                            Activity: {currUser.routeCount + currUser.workoutCount}
                         </li>
                         <li className='userinfo-item'>
                             {currUser.friends.map(friend => {
@@ -161,7 +162,7 @@ function ActivityFeed() {
                                             </p>
                                         </div>
                                         <p className='act-comm'>
-                                            Comments: {activity.comments.length}
+                                            Comments: {activity.commentCount}
                                         </p>
                                     </div>
                                     <div className='post-owner-info'>
@@ -173,7 +174,7 @@ function ActivityFeed() {
                                             <div className='oi-text'>
                                                 <p className='oi-username'>{activity.ownerInfo.username}</p>
                                                 <p>
-                                                    {activity.createdAt}
+                                                    {formatDate(activity.createdAt)}
                                                 </p>
                                             </div>
                                         </a>
@@ -206,7 +207,7 @@ function ActivityFeed() {
                                             </p>
                                         </div>
                                         <p className='act-comm'>
-                                            Comments: {activity?.comments.length}
+                                            Comments: {activity.commentCount}
                                         </p>
                                     </div>
                                     <div className='post-owner-info'>
@@ -218,7 +219,7 @@ function ActivityFeed() {
                                         <div className='oi-text'>
                                             <p className='oi-username'>{activity.ownerInfo.username}</p>
                                             <p>
-                                                {activity.createdAt}
+                                                {formatDate(activity.createdAt)}
                                             </p>
                                         </div>
                                         </a>

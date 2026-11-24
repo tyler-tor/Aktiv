@@ -1,4 +1,4 @@
-from .db import db, environment, SCHEMA, add_prefix_for_prod, utcnow
+from .db import db, environment, SCHEMA, add_prefix_for_prod, utcnow, iso
 
 
 class Workout(db.Model):
@@ -37,6 +37,7 @@ class Workout(db.Model):
 
 
     def to_dict(self):
+        """The one workout shape used by every endpoint (see Route.to_dict)."""
         return {
             'id': self.id,
             'userId': self.user_id,
@@ -46,14 +47,8 @@ class Workout(db.Model):
             'totalTime': self.total_time,
             'distance': self.distance,
             'imageUrl': self.image_url,
-            'createdAt': self.created_at,
-            'updatedAt': self.updated_at,
-            'comments': [comment.to_dict() for comment in self.comments],
-            'ownerInfo': {
-                'profilePicture': self.users.profile_picture,
-                'firstName': self.users.first_name,
-                'lastName': self.users.last_name,
-                'email': self.users.email,
-                'username': self.users.username,
-            }
+            'createdAt': iso(self.created_at),
+            'updatedAt': iso(self.updated_at),
+            'commentCount': self.comment_count,
+            'ownerInfo': self.users.to_summary(),
         }

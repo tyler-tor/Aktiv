@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify
 from flask_login import login_required, current_user
-from app.models import User, Route, db
+from app.models import User, Route, Workout, Comment, db
 
 user_routes = Blueprint('users', __name__)
 
@@ -10,8 +10,8 @@ user_routes = Blueprint('users', __name__)
 @login_required
 def users():
 
-    users = db.session.scalars(db.select(User)).all()
-    return {'users': [user.to_dict() for user in users]}
+    users = db.session.scalars(db.select(User).order_by(User.username)).all()
+    return {'users': [user.to_summary() for user in users]}
 
 
 # get info on a specific user
@@ -20,7 +20,7 @@ def users():
 def user(id):
     user = db.session.get(User, id)
     if user:
-        return user.to_dict()
+        return user.to_dict(include_activity=True)
     return {'errors': ['This user does not exist!']}, 404
 
 
@@ -30,7 +30,8 @@ def user(id):
 def user_route(id):
     user = db.session.get(User, id)
     if user:
-        routes = user.to_dict()['routes']
+        routes = [route.to_dict() for route in db.session.scalars(
+            db.select(Route).where(Route.user_id == user.id).order_by(Route.id)).all()]
         return {'routes': routes}
     return {'errors': ['This user does not exist!']}, 404
 
@@ -41,7 +42,8 @@ def user_route(id):
 def user_comments(id):
     user = db.session.get(User, id)
     if user:
-        comments = user.to_dict()['comments']
+        comments = [comment.to_dict() for comment in db.session.scalars(
+            db.select(Comment).where(Comment.user_id == user.id).order_by(Comment.id)).all()]
         return {'comments': comments}
     return {'errors': ['This user does not exist!']}, 404
 
@@ -52,7 +54,8 @@ def user_comments(id):
 def user_workouts(id):
     user = db.session.get(User, id)
     if user:
-        workouts = user.to_dict()['workouts']
+        workouts = [workout.to_dict() for workout in db.session.scalars(
+            db.select(Workout).where(Workout.user_id == user.id).order_by(Workout.id)).all()]
         return {'workouts': workouts}
     return {'errors': ['This user does not exist!']}, 404
 
@@ -63,8 +66,7 @@ def user_workouts(id):
 def user_friends(id):
     user = db.session.get(User, id)
     if user:
-        friends = user.to_dict()['friends']
-        return {'friends': friends}
+        return {'friends': [friend.to_friend() for friend in user.followers]}
     return {'errors': ['This user does not exist!']}, 404
 
 
@@ -93,7 +95,7 @@ def add_user_friends(id):
     if not _is_follower(user, curr_user):
         user.followers.append(curr_user)
     db.session.commit()
-    return {'friend': user.to_dict(), 'currUser': curr_user.to_dict()}
+    return {'friend': user.to_summary(), 'currUser': curr_user.to_dict(private=True)}
 
 
 # unfriending a user
@@ -111,4 +113,4 @@ def unfriend_user(id):
     if _is_follower(user, curr_user):
         user.followers.remove(curr_user)
     db.session.commit()
-    return {'unFriended': user.to_dict(), 'currUser': curr_user.to_dict()['friends']}
+    return {'unFriended': user.to_summary(), 'currUser': [friend.to_friend() for friend in curr_user.followers]}

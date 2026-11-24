@@ -11,7 +11,7 @@ def friend_activity():
     user = db.session.get(User, current_user.id)
 
     if user:
-        friends = user.to_dict()['friends']
+        friends = [friend.to_friend() for friend in user.followers]
         act_dict = {}
         route_list = []
         workout_list = []

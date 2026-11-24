@@ -1,4 +1,4 @@
-from .db import db, environment, SCHEMA, add_prefix_for_prod, utcnow
+from .db import db, environment, SCHEMA, add_prefix_for_prod, utcnow, iso
 
 
 class Comment(db.Model):
@@ -21,26 +21,23 @@ class Comment(db.Model):
     workouts = db.relationship('Workout', back_populates='comments', single_parent=True)
 
     def to_dict(self):
-        if self.routes:
-            return {
-                'id': self.id,
-                'userId': self.user_id,
-                'body': self.body,
-                'createdAt': self.created_at,
-                'routeId': self.routes.id,
-                'user': {
-                    'username': self.users.username,
-                    'profilePicture': self.users.profile_picture
-                }
-            }
-        return {
+        """
+        A comment belongs to a route (routeId) or a workout (workoutId). The
+        ids come from the comment's own columns, so building this does not
+        load the route / workout.
+        """
+        data = {
             'id': self.id,
             'userId': self.user_id,
             'body': self.body,
-            'createdAt': self.created_at,
-            'workoutId': self.workouts.id,
+            'createdAt': iso(self.created_at),
             'user': {
-                    'username': self.users.username,
-                    'profilePicture': self.users.profile_picture
-                }
+                'username': self.users.username,
+                'profilePicture': self.users.profile_picture,
+            },
         }
+        if self.route_id is not None:
+            data['routeId'] = self.route_id
+        else:
+            data['workoutId'] = self.workout_id
+        return data

@@ -61,9 +61,8 @@ function RouteDisplay() {
                                 {(route.endingPoint !== '' && response === null) && (
                                     <DirectionsService
                                         options={{
-                                            ...route.requestData,
-                                            destination: route.requestData.destination,
-                                            origin: route.requestData.origin,
+                                            destination: route.endingPoint,
+                                            origin: route.startingPoint,
                                             travelMode: route.travelMode
                                         }}
                                         callback={directionsCallback}
@@ -101,9 +100,6 @@ function RouteDisplay() {
                             </li>
                             <li className='last-name'>
                                 {route?.ownerInfo.lastName}
-                            </li>
-                            <li className='email'>
-                                {route?.ownerInfo.email}
                             </li>
                         </ul>
                         <img src={route?.ownerInfo.profilePicture}

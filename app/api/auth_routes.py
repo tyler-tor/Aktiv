@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, session, request
-from app.models import User, db
+from sqlalchemy import func
+from app.models import User, Route, Workout, db
 from app.forms import LoginForm
 from app.forms import SignUpForm
 from flask_login import current_user, login_user, logout_user, login_required
@@ -23,20 +24,34 @@ def validation_errors_to_error_messages(validation_errors):
     return errorMessages
 
 
+def session_payload(user):
+    """
+    What the frontend keeps in `state.session.user`: the user's own profile
+    (with email), their friends, how many routes/workouts they have, and
+    `nonFriends` = other users they could add (small summaries only, filtered
+    in SQL instead of loading and serializing every user in Python).
+    """
+    data = user.to_dict(private=True)
+    friend_ids = [friend['id'] for friend in data['friends']]
+    non_friends = db.session.scalars(
+        db.select(User)
+        .where(User.id.not_in(friend_ids + [user.id]))
+        .order_by(User.username)).all()
+    data['nonFriends'] = [other.to_summary() for other in non_friends]
+    data['routeCount'] = db.session.scalar(
+        db.select(func.count(Route.id)).where(Route.user_id == user.id))
+    data['workoutCount'] = db.session.scalar(
+        db.select(func.count(Workout.id)).where(Workout.user_id == user.id))
+    return data
+
+
 @auth_routes.route('/')
 def authenticate():
     """
     Authenticates a user.
     """
     if current_user.is_authenticated:
-        user_dict = current_user.to_dict()
-        #getting list of friends
-        friends = user_dict['friends']
-        #query to exclude friends from user table
-        non_friends = db.session.scalars(db.select(User).where(User.username.not_in([dict(friend)['username'] for friend in friends]))).all()
-        #only allow users that are not the current user
-        user_dict['nonFriends'] = [user.to_dict() for user in non_friends if user.id != current_user.id]
-        return user_dict
+        return session_payload(current_user)
     return {'errors': ['Unauthorized']}
 
 
@@ -58,14 +73,7 @@ def login():
         return {'errors': ['Invalid email or password']}, 401
     # Add the user to the session, we are logged in!
     login_user(user)
-    user_dict = user.to_dict()
-    #getting list of friends
-    friends = user_dict['friends']
-    #query to exclude friends from user table
-    non_friends = db.session.scalars(db.select(User).where(User.username.not_in([dict(friend)['username'] for friend in friends]))).all()
-    #only allow users that are not the current user
-    user_dict['nonFriends'] = [user.to_dict() for user in non_friends if user.id != current_user.id]
-    return user_dict
+    return session_payload(user)
 
 
 @auth_routes.route('/logout')
@@ -98,8 +106,7 @@ def sign_up():
         db.session.add(user)
         db.session.commit()
         login_user(user)
-        user_dict = user.to_dict()
-        return user_dict
+        return session_payload(user)
     return {'errors': validation_errors_to_error_messages(form.errors)}, 400
 
 
