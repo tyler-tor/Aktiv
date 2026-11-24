@@ -1,4 +1,6 @@
-import { GoogleMap, Marker, InfoWindow } from "@react-google-maps/api";
+import { GoogleMap, InfoWindow } from "@react-google-maps/api";
+import MapMarker from "../ui/MapMarker";
+import { GOOGLE_MAPS_MAP_ID } from "../../config";
 import { useGoogleMaps } from "../../context/GoogleMaps";
 import React, { useMemo, useState } from "react";
 import { Link } from "react-router";
@@ -9,6 +11,7 @@ import { useUnits } from "../../context/Units";
 import './MapComponent.css'
 
 const containerStyle = { width: '100%', height: '100%' };
+const MAP_OPTIONS = { mapId: GOOGLE_MAPS_MAP_ID, streetViewControl: false, mapTypeControl: false };
 
 
 const MapComponent = ({ lat, lng }) => {
@@ -43,19 +46,13 @@ const MapComponent = ({ lat, lng }) => {
                     zoom={4}
                     center={center}
                     mapContainerClassName='map-container'
+                    options={MAP_OPTIONS}
                     >
-                    {routes && routes.map(route => {
-                        return (
-                        <div key={route.id}>
-                            {route.startingPoint && <Marker position={{...route.startingPoint}}
-                            onClick={() => {
-                                setSelected({'coord':{...route.startingPoint}, 'route': route})
-                            }}
-                            />}
-                        </div>
-                        )
-                    })}
-                    
+                    {routes.map(route => route.startingPoint && (
+                        <MapMarker key={route.id} position={route.startingPoint} title={`${route.title} (open details)`}
+                            onClick={() => setSelected({ coord: { ...route.startingPoint }, route })} />
+                    ))}
+
                     {selected ? (
                         <InfoWindow position={{lat: selected.coord.lat, lng: selected.coord.lng}}
                         onCloseClick={() => {

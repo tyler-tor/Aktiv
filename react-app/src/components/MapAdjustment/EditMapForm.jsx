@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { updateRoute } from '../../store/routes';
-import { GoogleMap, Marker } from '@react-google-maps/api';
+import { GoogleMap } from '@react-google-maps/api';
+import MapMarker from '../ui/MapMarker';
+import { GOOGLE_MAPS_MAP_ID } from '../../config';
 import { useDistanceMatrix } from '../../hooks/useDirections';
 import { useToast } from '../../context/Toast';
 import { useGoogleMaps } from '../../context/GoogleMaps';
 
+
+const MAP_OPTIONS = { mapId: GOOGLE_MAPS_MAP_ID, streetViewControl: false, mapTypeControl: false };
 
 function EditMapForm({ route, onClose }) {
     const currUser = useSelector(state => state.session.user)
@@ -73,11 +77,9 @@ function EditMapForm({ route, onClose }) {
             <p className='dialog__text'>Drag the pins to change the start or finish.</p>
             <div className='edit-map'>
                 {isLoaded
-                    ? <GoogleMap zoom={6} center={center} mapContainerClassName='edit-map__map'>
-                        <Marker position={start} draggable={true} title='Start'
-                            onDragEnd={(e) => setStart({ lat: e.latLng.lat(), lng: e.latLng.lng() })} />
-                        <Marker position={end} draggable={true} title='Finish'
-                            onDragEnd={(e) => setEnd({ lat: e.latLng.lat(), lng: e.latLng.lng() })} />
+                    ? <GoogleMap zoom={6} center={center} mapContainerClassName='edit-map__map' options={MAP_OPTIONS}>
+                        <MapMarker position={start} variant='start' draggable title='Start (drag to move)' onDragEnd={setStart} />
+                        <MapMarker position={end} variant='end' draggable title='Finish (drag to move)' onDragEnd={setEnd} />
                     </GoogleMap>
                     : <div className='skeleton edit-map__map' role='status'>Loading map...</div>}
             </div>

@@ -6,7 +6,7 @@ import { GOOGLE_MAPS_API_KEY } from '../config';
 // Google Maps libraries to load. Must be a constant defined outside any
 // component: a new array on every render makes the loader reload the script
 // (and log a "Performance warning"). Add e.g. 'places' here if needed later.
-const LIBRARIES = ['maps'];
+const LIBRARIES = ['maps', 'marker'];
 
 // Runs the (single) Maps script loader. Lives in its own file so that
 // @react-google-maps/api is only downloaded (as a separate JavaScript file)

@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { GoogleMap, Polyline, Marker, DirectionsRenderer } from '@react-google-maps/api';
+import { GoogleMap, Polyline, DirectionsRenderer } from '@react-google-maps/api';
+import MapMarker from '../ui/MapMarker';
+import { GOOGLE_MAPS_MAP_ID } from '../../config';
 import { useGoogleMaps } from '../../context/GoogleMaps';
 import { useParams } from 'react-router';
 import { useSelector, useDispatch } from 'react-redux';
@@ -23,7 +25,7 @@ const DefaultCenter = {
     lng: -117.420902
 };
 
-const MAP_OPTIONS = { streetViewControl: false, mapTypeControl: false, fullscreenControl: true };
+const MAP_OPTIONS = { mapId: GOOGLE_MAPS_MAP_ID, streetViewControl: false, mapTypeControl: false, fullscreenControl: true };
 const POLYLINE_OPTIONS = { strokeColor: MAP_COLORS.route, strokeWeight: 5, strokeOpacity: 0.95 };
 
 
@@ -118,8 +120,8 @@ function RouteDisplay() {
                             >
                                 {path.length >= 2 && <Polyline path={path} options={POLYLINE_OPTIONS} />}
                                 {fallback && <DirectionsRenderer options={{ directions: fallback, suppressMarkers: true }} />}
-                                <Marker position={current.startingPoint} title='Start' />
-                                <Marker position={current.endingPoint} title='Finish' />
+                                <MapMarker position={current.startingPoint} variant='start' title='Start' />
+                                <MapMarker position={current.endingPoint} variant='end' title='Finish' />
                             </GoogleMap>
                             : <RouteSketch polyline={current.polyline} start={current.startingPoint} end={current.endingPoint} title={current.title} />}
                     </div>

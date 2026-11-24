@@ -14,3 +14,10 @@ if (!GOOGLE_MAPS_API_KEY && import.meta.env.DEV) {
     // eslint-disable-next-line no-console
     console.warn('VITE_GOOGLE_MAPS_API_KEY is not set: maps will not load. See react-app/.env.example');
 }
+
+// Map ID: Advanced Markers (pins) only work on a map that has a Map ID.
+// Create one in Google Cloud Console (Map Management, Maps JavaScript API,
+// "Vector" or "Raster") and set VITE_GOOGLE_MAPS_MAP_ID. Without it the app
+// uses Google's shared DEMO_MAP_ID, which works for development but cannot be
+// styled and is not meant for production.
+export const GOOGLE_MAPS_MAP_ID = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID || 'DEMO_MAP_ID';

@@ -1,0 +1,7 @@
+/* Pins drawn into the map (DOM elements, so they follow the design tokens'
+   light-theme colours; Google's map itself does not switch to dark). */
+.map-pin { width: 22px; height: 22px; border-radius: 50%; box-sizing: border-box; box-shadow: 0 2px 6px rgb(20 16 63 / 0.4); transition: transform 0.15s ease; cursor: pointer; }
+.map-pin:hover { transform: scale(1.15); }
+.map-pin--pin, .map-pin--start { background: #3B2FD9; border: 3px solid #fff; }
+.map-pin--end { background: #fff; border: 5px solid #3B2FD9; }
+@media (prefers-reduced-motion: reduce) { .map-pin { transition: none; } }
