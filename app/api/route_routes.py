@@ -5,6 +5,7 @@ from app.models import Comment, Route, db
 from ..forms.route_form import CreateRouteForm
 from ..forms.comment_form import CreateCommentForm
 from .pagination import PaginationError, get_limit, paginate
+from ..services.directions import apply_directions
 
 route_routes = Blueprint('routes', __name__)
 
@@ -43,7 +44,8 @@ def all_routes():
             Route, limit, request.args.get('cursor'))
     except PaginationError as error:
         return {'errors': [str(error)]}, 400
-    return {'routes': [route.to_dict() for route in routes], 'nextCursor': next_cursor}
+    # No polylines in this list (the home map only needs markers): much smaller.
+    return {'routes': [route.to_dict(polyline=False) for route in routes], 'nextCursor': next_cursor}
 
 
 # add a new route
@@ -69,6 +71,8 @@ def add_route():
             duration_s=form.data['duration_s'],
             traveling_mode=form.data['traveling_mode']
         )
+        # Real path, distance and time from Google (when a server key is set)
+        apply_directions(route)
         db.session.add(route)
         db.session.commit()
         # Return the object we just created (it has its id after commit).
@@ -106,8 +110,12 @@ def update_route(id):
     form = CreateRouteForm()
     if form.validate_on_submit():
         # duration_s is optional: leave the stored one alone when it is not sent
+        moved = (route.start_lat, route.start_lng, route.end_lat, route.end_lng, route.traveling_mode)
         route.set_kwargs(**{field: form.data[field] for field in Route.EDITABLE_FIELDS
                             if not (field == 'duration_s' and form.data[field] is None)})
+        if moved != (route.start_lat, route.start_lng, route.end_lat, route.end_lng, route.traveling_mode):
+            # Points or travel mode changed: the stored path is stale, ask Google again
+            apply_directions(route)
         db.session.commit()
         return route.to_dict()
     return {'errors': validation_errors_to_error_messages(form.errors)}, 400

@@ -14,6 +14,7 @@ from .api.comments_routes import comment_routes
 from .api.me_routes import me_routes
 from .api.img_routes import img_routes
 from .seeds import seed_commands
+from .services.directions import directions_commands
 
 
 def create_app(config_name=None):
@@ -52,6 +53,7 @@ def create_app(config_name=None):
 
     # Tell flask about our seed commands (`flask seed all`, `flask seed undo`)
     app.cli.add_command(seed_commands)
+    app.cli.add_command(directions_commands)
 
     # API blueprints
     app.register_blueprint(user_routes, url_prefix='/api/users')

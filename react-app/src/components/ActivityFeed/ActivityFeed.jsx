@@ -1,19 +1,15 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { getFeed, getMoreFeed } from '../../store/friendsActivity';
 import { NavLink } from 'react-router';
 import './ActivityFeed.css';
-import { GOOGLE_MAPS_API_KEY } from '../../config';
+import RouteSketch from '../RouteSketch/RouteSketch';
 import { formatDate, formatMonthYear, formatDuration } from '../../utils/format';
 import { useUnits } from '../../context/Units';
 
 function ActivityFeed() {
     const dispatch = useDispatch();
     const { distance } = useUnits();
-    // Static map image URL per route id, built from the Directions response.
-    // (This used to be written onto the route objects themselves, i.e. it
-    // mutated Redux state; Redux Toolkit freezes state, so it lives here now.)
-    const [mapSrcs, setMapSrcs] = useState({})
     const { items, nextCursor, scope, loadingMore } = useSelector(state => state.friendsActivity)
     const following = scope === 'friends' ? 'Following' : 'All Activity'
     const currUser = useSelector(state => state.session.user)
@@ -22,28 +18,6 @@ function ActivityFeed() {
     useEffect(() => {
         dispatch(getFeed('friends'))
     }, [dispatch])
-
-    // Static map thumbnails for the routes on screen (only the ones we do not have yet).
-    useEffect(() => {
-        if (!items) return;
-        let cancelled = false;
-        (async () => {
-            const srcs = {}
-            for (let route of items) {
-                if (route.kind !== 'route' || mapSrcs[route.id]) continue
-                await fetch(`https://maps.googleapis.com/maps/api/directions/json?origin=${route.startingPoint.lat},${route.startingPoint.lng}&destination=${route.endingPoint.lat},${route.endingPoint.lng}&mode=${route.travelMode}&key=${GOOGLE_MAPS_API_KEY}`).then(async (res) => {
-                    if (res.ok) {
-                        let jsonify = await res.json()
-                        if (jsonify.routes && jsonify.routes[0]) {
-                            srcs[route.id] = `https://maps.googleapis.com/maps/api/staticmap?size=500x400&markers=${route.startingPoint.lat},${route.startingPoint.lng}|${route.endingPoint.lat},${route.endingPoint.lng}&path=enc:${jsonify.routes[0].overview_polyline.points}&key=${GOOGLE_MAPS_API_KEY}`
-                        }
-                    }
-                }).catch(() => {})
-            }
-            if (!cancelled && Object.keys(srcs).length) setMapSrcs(prev => ({ ...prev, ...srcs }))
-        })();
-        return () => { cancelled = true };
-    }, [items])
 
     if (!items) {
         return null;
@@ -114,7 +88,6 @@ function ActivityFeed() {
                 {items.map((activity) => {
                     // Only routes (they have a startingPoint) get a map image;
                     // route and workout ids can overlap.
-                    const routeMapSrc = activity.kind === 'route' ? mapSrcs[activity.id] : undefined
                     return (
                         <div className='af-posts-container'
                             key={`${activity.kind}-${activity.id}`}>
@@ -122,9 +95,8 @@ function ActivityFeed() {
                                 <div className='post-info-container'>
                                     <a className='img-container'
                                         href={`/routes/${activity.id}`}>
-                                        <img src={routeMapSrc || activity.imageUrl} alt='route map'
-                                            className='static-map'
-                                        />
+                                        <RouteSketch polyline={activity.polyline} start={activity.startingPoint}
+                                            end={activity.endingPoint} title={activity.title} />
                                     </a>
                                     <div className='post-info'>
                                         <a className='act-title'

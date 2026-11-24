@@ -651,3 +651,21 @@ at the end of this file.
   - The migration rewrites data. Back up production first (`pg_dump`) and try it on a copy; it was run on SQLite only.
   - Text such as "about 5" without a unit is read as kilometres; unreadable values become 0 (they show as "0.0 km"). Look at rows with distance 0 after upgrading: `SELECT id, title FROM routes WHERE distance_m = 0;`.
   - Route `duration_s` stays empty for older routes until A28 computes it (the route page then simply omits "about ...").
+
+## A28 — Compute route polylines once, on the server
+- **Problem:** `ActivityFeed` fetched the Google Directions **web service** from the browser, one request after another, for every route on screen, every time the list changed. That costs money per call, is slow (serial), is normally blocked by browser CORS rules and needs an unrestricted key, so the thumbnails mostly never appeared (and a route without a thumbnail was drawn as a workout card).
+- **What changed:**
+  - **Server:** new `app/services/directions.py`. When a route is created, or edited so that its start, end or travel mode changed, Flask calls Directions **once** with `GOOGLE_MAPS_SERVER_KEY` and stores the result on the route: `encoded_polyline` (new text column, migration `e6f9c4b7d2a3_route_polyline.py`), plus the real `distance_m` and `duration_s` (sums of the legs; these replace the client's Distance Matrix numbers). A rename or description edit does **not** call Google. Without a key, or if Google or the network fails, the route is still saved (no polyline, client numbers kept, and a stale old polyline is cleared); the API key is never logged or returned. Only `WALKING` and `BICYCLING` are supported.
+  - **API:** a route has a `polyline` field in the detail, create/update, feed and profile answers; the home-map list (`/api/routes/`) leaves it out to stay small.
+  - **Backfill:** `flask directions backfill [--all]` computes the polyline for existing routes (needs the key).
+  - **Frontend:** new `utils/polyline.js` (decoder + projection) and a `RouteSketch` component: an SVG drawing of the stored line on a soft grid with a start dot and a finish ring (a dashed straight line when a route has no polyline). The feed now draws these instead of loading Static Maps images, so it makes **no Google requests at all** and thumbnails appear instantly.
+- **Files:** `app/services/{__init__,directions}.py` (new), `app/models/route.py`, `app/api/route_routes.py`, `app/config.py`, `app/__init__.py`, `.env.example`, `migrations/versions/e6f9c4b7d2a3_route_polyline.py` (new), `react-app/src/utils/polyline.js` (new), `react-app/src/components/RouteSketch/*` (new), `react-app/src/components/ActivityFeed/ActivityFeed.jsx`
+- **How to verify:**
+  1. Create a server key in Google Cloud (Directions API only, restricted by IP), put `GOOGLE_MAPS_SERVER_KEY=...` in `.env`, `flask db upgrade`, then `flask directions backfill`.
+  2. Open `/activity`: route cards show a line sketch; DevTools > Network shows no `maps.googleapis.com` requests from that page.
+  3. Create a new route: `GET /api/routes/<id>` has a `polyline`; editing only the title does not trigger a Directions call.
+  Verified without a real key (none available): a test replaces the HTTP function with a fake Google answer and checks 17 things: no key = no call and the client distance is kept; with a key exactly one call with the right origin/destination/mode; polyline and summed distance/duration are stored; the key never appears in a response; rename = no call; moving a point or changing the mode = a new call; `ZERO_RESULTS`, a network error and a malformed answer all still save the route; the backfill command fills every route and complains without a key. Migration upgrade/downgrade tested on SQLite. The decoder passes Google's documented example (`_p~iF~ps|U_ulLnnqC`); the jsdom smoke test shows the feed with no Google requests. A real Directions call was **not** made.
+- **Things to watch:**
+  - Create/edit now wait for Google (5 second timeout) before answering. That is fine for a few users; a background job would be the next step if it ever matters.
+  - Billing: one Directions request per route save (not per page view), which is the whole point.
+  - Old routes have no polyline until you run the backfill; they show the dashed straight-line sketch.

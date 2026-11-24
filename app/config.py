@@ -86,6 +86,10 @@ class Config:
     # for hours; the default 1-hour limit caused random 400s after idling).
     WTF_CSRF_TIME_LIMIT = None
 
+    # Google Maps *server* key for the Directions API (A28). Optional: without
+    # it routes are saved without a stored polyline. Never sent to the browser.
+    GOOGLE_MAPS_SERVER_KEY = os.environ.get('GOOGLE_MAPS_SERVER_KEY')
+
     # /api/docs lists every route; on by default except in production.
     ENABLE_API_DOCS = _env_flag('ENABLE_API_DOCS', True)
 

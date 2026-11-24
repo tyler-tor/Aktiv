@@ -24,6 +24,8 @@ class Route(db.Model):
     # as km/mi and h:mm). duration_s is filled from Google Directions (A28).
     distance_m = db.Column(db.Float(), nullable=False)
     duration_s = db.Column(db.Integer())
+    # Google's encoded polyline of the real path (A28); None = not computed.
+    encoded_polyline = db.Column(db.Text())
     created_at = db.Column(db.DateTime, default=utcnow, server_default=db.func.now(), index=True)
     updated_at = db.Column(
         db.DateTime, default=utcnow, onupdate=utcnow, server_default=db.func.now())
@@ -47,13 +49,14 @@ class Route(db.Model):
                 setattr(self, key, value)
         return self
 
-    def to_dict(self):
+    def to_dict(self, polyline=True):
         """
         The one route shape used by every endpoint. Comments are NOT embedded
         (fetch them from /api/routes/<id>/comments); only their count is, and
-        the owner is the small public summary (no email).
+        the owner is the small public summary (no email). `polyline` is the
+        stored encoded path (see app/services/directions.py), or None.
         """
-        return {
+        data = {
             'id': self.id,
             'userId': self.user_id,
             'title': self.title,
@@ -69,3 +72,7 @@ class Route(db.Model):
             'commentCount': self.comment_count,
             'ownerInfo': self.users.to_summary(),
         }
+        if polyline:
+            # Only the pages that draw the route need it; the home map list leaves it out.
+            data['polyline'] = self.encoded_polyline
+        return data
