@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux'
-import { useNavigate, Navigate } from 'react-router';
+import { Link, useNavigate, Navigate } from 'react-router';
 import { signUp, authenticate } from '../../store/session';
 import { uploadImage, setProfilePicture } from '../../store/uploads';
 import ImageUploadComponent from '../ImageUploadComponenet';
-import './SignUpForm.css'
+import ContourBackdrop from '../ui/ContourBackdrop';
+import './AuthPages.css'
 
 const SignUpForm = () => {
   const [errors, setErrors] = useState([]);
@@ -15,6 +16,7 @@ const SignUpForm = () => {
   const [password, setPassword] = useState('');
   const [repeatPassword, setRepeatPassword] = useState('');
   const [pictureFile, setPictureFile] = useState(null);
+  const [busy, setBusy] = useState(false);
   const user = useSelector(state => state.session.user);
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -25,10 +27,12 @@ const SignUpForm = () => {
       setErrors(['Passwords do not match.']);
       return;
     }
+    setBusy(true);
     const data = await dispatch(signUp(username, email, password, '', firstName, lastName));
     if (data) {
       setErrors(data)
-    }else {
+      setBusy(false);
+    } else {
       // Uploads require a logged-in user, so the picture is uploaded only
       // after the account exists. If it fails the default avatar is kept.
       if (pictureFile) {
@@ -41,125 +45,74 @@ const SignUpForm = () => {
     }
   };
 
-  const updateUsername = (e) => {
-    setUsername(e.target.value);
-  };
-
-  const updateFirstName = (e) => {
-    setFirstName(e.target.value);
-  };
-
-  const updateLastName = (e) => {
-    setLastName(e.target.value);
-  };
-
-  const updateEmail = (e) => {
-    setEmail(e.target.value);
-  };
-
-  const updatePassword = (e) => {
-    setPassword(e.target.value);
-  };
-
-  const updateRepeatPassword = (e) => {
-    setRepeatPassword(e.target.value);
-  };
-
   if (user) {
     return <Navigate to='/' replace />;
   }
 
   return (
-    <div className='suf-container'>
-      <div className='suf-container-inner'>
-      <strong className='form-box-brand-text'>AKTIV
-      <i className="fab fa-strava"></i>
-      </strong>
-      <p className='login-logo-text'>Adventure awaits, signup and join today!</p>
-        <div className='suf-item-container'>
-          <label className='suf-label'>Profile Picture <> </></label>
-          <ImageUploadComponent onFileSelected={setPictureFile} />
+    <main className='auth'>
+      <section className='auth__hero' aria-labelledby='signup-headline'>
+        <ContourBackdrop />
+        <div className='auth__hero-copy'>
+          <h1 id='signup-headline' className='auth__headline'>Make your first route in two clicks.</h1>
+          <p className='auth__sub'>Create an account to save routes, log workouts and see what your friends are doing.</p>
         </div>
-        <form onSubmit={onSignUp}
-          className='signup-form'>
-          <div className='errors-container'>
+      </section>
+      <section className='auth__panel' aria-labelledby='signup-title'>
+        <form onSubmit={onSignUp} className='form auth__form auth__form--wide'>
+          <h2 id='signup-title'>Create your account</h2>
+          <div className='form-errors' role='alert'>
             {errors.map((error, ind) => (
-              <div key={ind} className='error-message'>{error}</div>
+              <p key={ind} className='form-error'>{error}</p>
             ))}
           </div>
-          <div className='suf-item-container'>
-            <label className='suf-label'>User Name</label>
-            <input
-              type='text'
-              name='username'
-              onChange={updateUsername}
-              placeholder='Username'
-              value={username}
-              className='suf-input'
-            ></input>
+          <div className='field'>
+            <span className='field-label' id='signup-picture-label'>Profile picture (optional)</span>
+            <ImageUploadComponent onFileSelected={setPictureFile} labelledBy='signup-picture-label' />
           </div>
-          <div className='suf-item-container'>
-            <label className='suf-label'>First Name</label>
-            <input
-              type='text'
-              name='firstName'
-              onChange={updateFirstName}
-              placeholder='First Name'
-              value={firstName}
-              className='suf-input'
-            ></input>
+          <div className='field-row'>
+            <div className='field'>
+              <label htmlFor='su-first'>First name</label>
+              <input id='su-first' type='text' name='firstName' autoComplete='given-name' required className='input'
+                value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+            </div>
+            <div className='field'>
+              <label htmlFor='su-last'>Last name</label>
+              <input id='su-last' type='text' name='lastName' autoComplete='family-name' required className='input'
+                value={lastName} onChange={(e) => setLastName(e.target.value)} />
+            </div>
           </div>
-          <div className='suf-item-container'>
-            <label className='suf-label'>Last Name</label>
-            <input
-              type='text'
-              name='lastName'
-              onChange={updateLastName}
-              placeholder='Last Name'
-              value={lastName}
-              className='suf-input'
-            ></input>
+          <div className='field'>
+            <label htmlFor='su-username'>Username</label>
+            <input id='su-username' type='text' name='username' autoComplete='username' required className='input'
+              value={username} onChange={(e) => setUsername(e.target.value)} />
           </div>
-          <div className='suf-item-container'>
-            <label className='suf-label'>Email</label>
-            <input
-              type='text'
-              name='email'
-              onChange={updateEmail}
-              placeholder='Email'
-              value={email}
-              className='suf-input'
-            ></input>
+          <div className='field'>
+            <label htmlFor='su-email'>Email</label>
+            <input id='su-email' type='email' name='email' autoComplete='email' required className='input'
+              value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
-          <div className='suf-item-container'>
-            <label className='suf-label'>Password</label>
-            <input
-              type='password'
-              name='password'
-              onChange={updatePassword}
-              placeholder='Password (at least 8 characters)'
-              value={password}
-              minLength={8}
-              required={true}
-              className='suf-input'
-            ></input>
+          <div className='field-row'>
+            <div className='field'>
+              <label htmlFor='su-password'>Password</label>
+              <input id='su-password' type='password' name='password' autoComplete='new-password' required minLength={8}
+                className='input' aria-describedby='su-password-hint'
+                value={password} onChange={(e) => setPassword(e.target.value)} />
+              <span className='field-hint' id='su-password-hint'>At least 8 characters.</span>
+            </div>
+            <div className='field'>
+              <label htmlFor='su-repeat'>Repeat password</label>
+              <input id='su-repeat' type='password' name='repeat_password' autoComplete='new-password' required
+                className='input' value={repeatPassword} onChange={(e) => setRepeatPassword(e.target.value)} />
+            </div>
           </div>
-          <div className='suf-item-container'>
-            <label className='suf-label'>Repeat Password</label>
-            <input
-              type='password'
-              name='repeat_password'
-              onChange={updateRepeatPassword}
-              placeholder='Repeat Password'
-              value={repeatPassword}
-              required={true}
-              className='suf-input'
-            ></input>
-          </div>
-          <button type='submit' className='submit-btn'>Sign Up</button>
+          <button type='submit' className='btn btn--primary btn--block' disabled={busy}>
+            {busy ? 'Creating account...' : 'Create account'}
+          </button>
+          <p className='auth__switch'>Already have an account? <Link to='/'>Log in</Link></p>
         </form>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 };
 

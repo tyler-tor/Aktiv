@@ -1,42 +1,53 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { NavLink } from 'react-router';
+import { Link } from 'react-router';
+import { FiMap } from 'react-icons/fi';
 import { getAllRoutes } from '../../store/routes';
-import { useUnits } from '../../context/Units';
-import { formatDate } from '../../utils/format';
+import ActivityCard from '../ui/ActivityCard';
+import usePageTitle from '../../hooks/usePageTitle';
 import './Routes.css';
 
-// "Routes" page: every route in the app, newest first, as a list of links.
+// "Routes" page: every route in the app, newest first, as a grid of cards.
 function Routes() {
     const dispatch = useDispatch();
     const routesById = useSelector(state => state.routes.routes);
-    const { distance } = useUnits();
+    const [failed, setFailed] = useState(false);
+    usePageTitle('Routes');
 
     useEffect(() => {
-        dispatch(getAllRoutes());
+        Promise.resolve(dispatch(getAllRoutes())).catch(() => setFailed(true));
     }, [dispatch]);
 
-    // null = still loading (before the first answer arrives)
-    if (!routesById) {
-        return <p className='list-page-status' role='status'>Loading routes...</p>;
-    }
-
-    const routes = Object.values(routesById).sort((a, b) => b.id - a.id);
+    const routes = routesById ? Object.values(routesById).sort((a, b) => b.id - a.id) : null;
 
     return (
-        <main className='list-page'>
-            <h1 className='list-page-title'>Routes</h1>
-            {routes.length === 0 ? (
-                <p className='list-page-status'>No routes yet. <NavLink to='/newRoute'>Add the first one</NavLink>.</p>
-            ) : (
-                <ul className='list-page-list'>
+        <main className='page list-page'>
+            <header className='list-page__head'>
+                <div>
+                    <h1 className='list-page__title'>Routes</h1>
+                    <p className='page-lead'>Every route shared on Aktiv, newest first.</p>
+                </div>
+                <Link to='/newRoute' className='btn btn--primary'>Plan a route</Link>
+            </header>
+            {failed && <div className='empty-state' role='alert'><h2>Could not load routes</h2><p>Reload the page to try again.</p></div>}
+            {!routes && !failed && (
+                <div className='list-grid' role='status'>
+                    <span className='sr-only'>Loading routes</span>
+                    {[0, 1, 2].map(i => <div key={i} className='skeleton list-grid__skeleton' aria-hidden='true' />)}
+                </div>
+            )}
+            {routes && routes.length === 0 && (
+                <div className='empty-state'>
+                    <FiMap size={32} aria-hidden='true' />
+                    <h2>No routes yet</h2>
+                    <p>Drop a start and a finish pin on the map to save the first one.</p>
+                    <Link to='/newRoute' className='btn btn--primary btn--sm'>Plan a route</Link>
+                </div>
+            )}
+            {routes && routes.length > 0 && (
+                <ul className='list-grid'>
                     {routes.map(route => (
-                        <li key={route.id} className='list-page-item'>
-                            <NavLink to={`/routes/${route.id}`} className='list-page-link'>{route.title}</NavLink>
-                            <span className='list-page-meta'>
-                                {distance(route.distanceM)} · {route.travelMode.toLowerCase()} · by {route.ownerInfo.username} · {formatDate(route.createdAt)}
-                            </span>
-                        </li>
+                        <li key={route.id}><ActivityCard activity={route} kind='route' /></li>
                     ))}
                 </ul>
             )}

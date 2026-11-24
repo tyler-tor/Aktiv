@@ -1,0 +1,13 @@
+.comments { display: grid; gap: var(--s-4); max-width: 46rem; }
+.comments__head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-4); }
+.comments__title { font-size: var(--text-xl); }
+.comments__count { color: var(--text-muted); font-weight: 600; margin-left: var(--s-1); }
+.comments__list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-3); }
+.comment { display: flex; gap: var(--s-3); align-items: flex-start; padding: var(--s-3) var(--s-4); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); }
+.comment__body { flex: 1; min-width: 0; }
+.comment__author { font-weight: 700; font-size: var(--text-sm); color: var(--text); text-decoration: none; }
+.comment__author:hover { color: var(--accent); }
+.comment__text { margin: 2px 0 0; overflow-wrap: anywhere; }
+.comments__empty { display: flex; align-items: center; gap: var(--s-3); color: var(--text-muted); padding: var(--s-5); border: 1px dashed var(--border-strong); border-radius: var(--r-md); }
+.comments__empty p { margin: 0; }
+.comments__skeleton { height: 5rem; border-radius: var(--r-md); }

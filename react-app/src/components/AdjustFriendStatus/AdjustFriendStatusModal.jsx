@@ -1,24 +1,25 @@
 import React, { useState } from 'react'
+import { FiUserPlus, FiUserCheck } from 'react-icons/fi';
 import { Modal } from '../../context/Modal'
 import AdjustFriendStatusAlert from './AdjustFriendStatusAlert';
-import './AdjustFriendStatus.css';
 
-function AdjustFriendStatusModal({ userId, status, setStatus, setLoading }) {
+function AdjustFriendStatusModal({ userId, status, setStatus, setLoading, name }) {
     const [showModal, setShowModal] = useState(false);
 
     return (
-        <div className='afs-btn-wrapper'>
-            <button className='afs-btn'
-            onClick={() => setShowModal(true)}>
-                {status ? 'Unfriend User' : 'Friend User'}
+        <>
+            <button type='button' className={`btn btn--sm ${status ? 'btn--secondary' : 'btn--primary'}`}
+                onClick={() => setShowModal(true)}>
+                {status ? <FiUserCheck aria-hidden='true' /> : <FiUserPlus aria-hidden='true' />}
+                {status ? 'Friends' : 'Add friend'}
             </button>
             {showModal && (
                 <Modal onClose={() => setShowModal(false)}>
                     <AdjustFriendStatusAlert userId={userId} status={status} setStatus={setStatus} setLoading={setLoading}
-                    onClose={() => setShowModal(false)} />
+                    name={name} onClose={() => setShowModal(false)} />
                 </Modal>
             )}
-        </div>
+        </>
     )
 }
 

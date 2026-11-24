@@ -1,42 +1,11 @@
-.list-page {
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 24px 16px 96px;
-    color: #fff;
-}
-
-.list-page-title {
-    margin-bottom: 16px;
-}
-
-.list-page-list {
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.list-page-item {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 12px 16px;
-    border-radius: 8px;
-    background: #242424;
-}
-
-.list-page-link,
-.list-page-status a {
-    color: #fff;
-    font-size: 1.1rem;
-}
-
-.list-page-meta,
-.list-page-status {
-    color: #d0d7e2;
-}
-
-.list-page-status {
-    padding: 24px 16px;
-    text-align: center;
-}
+.list-page { padding-block: var(--s-6) var(--s-8); }
+.list-page__head { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--s-4); flex-wrap: wrap; margin-bottom: var(--s-6); }
+.list-page__title { font-size: var(--text-3xl); letter-spacing: -0.03em; }
+.list-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); gap: var(--s-5); }
+.list-grid > li { display: flex; }
+.list-grid > li > * { flex: 1; min-width: 0; }
+.list-grid__skeleton { height: 20rem; border-radius: var(--r-lg); }
+.people-card { display: flex; align-items: center; gap: var(--s-4); padding: var(--s-4); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); color: var(--text); text-decoration: none; }
+.people-card:hover { border-color: var(--accent); }
+.people-card strong { display: block; font-family: var(--font-display); font-size: var(--text-lg); }
+.people-card span { color: var(--text-muted); font-size: var(--text-sm); }

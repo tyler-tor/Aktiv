@@ -1,23 +1,22 @@
 import React, { useState } from 'react'
+import { FiEdit2 } from 'react-icons/fi'
 import { Modal } from '../../context/Modal'
 import EditCommentForm from '../EditCommentForm/EditCommentForm'
-import './EditComment.css'
 
 function EditCommentModal({ commentId }) {
     const [showModal, setShowModal] = useState(false)
 
     return (
-        <div className='comm-btn'>
-            <i className="fas fa-edit" onClick={() => setShowModal(true)}></i>
+        <>
+            <button type='button' className='icon-btn' aria-label='Edit comment' onClick={() => setShowModal(true)}>
+                <FiEdit2 aria-hidden='true' />
+            </button>
             {showModal && (
                 <Modal onClose={() => setShowModal(false)}>
-                    <EditCommentForm
-                        commentId={commentId}
-                        onClose={() => setShowModal(false)}
-                    />
+                    <EditCommentForm commentId={commentId} onClose={() => setShowModal(false)} />
                 </Modal>
             )}
-        </div>
+        </>
     )
 }
 

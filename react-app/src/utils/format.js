@@ -72,3 +72,17 @@ export const activityKind = (text) => {
     if (t.startsWith('walk')) return 'walk';
     return 'other';
 };
+
+// "running" / "Run" / "WALKING" / "BICYCLING" -> "Run" | "Ride" | "Hike" | "Walk" | "Cardio"...
+export const activityLabel = (text) => {
+    switch (activityKind(text)) {
+        case 'run': return 'Run';
+        case 'bike': return 'Ride';
+        case 'hike': return 'Hike';
+        case 'walk': return 'Walk';
+        default: {
+            const t = String(text || 'Workout');
+            return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
+        }
+    }
+};

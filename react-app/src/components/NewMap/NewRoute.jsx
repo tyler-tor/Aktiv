@@ -6,7 +6,10 @@ import ImageUploadComponent from '../ImageUploadComponenet';
 import { GoogleMap, Marker } from '@react-google-maps/api';
 import { useDistanceMatrix } from '../../hooks/useDirections';
 import { useGoogleMaps } from '../../context/GoogleMaps';
-import './NewRoute.css'
+import { useUnits } from '../../context/Units'
+import { formatDuration } from '../../utils/format'
+import usePageTitle from '../../hooks/usePageTitle'
+import '../ui/Forms.css'
 
 const center = {
   lat: 37.090240,
@@ -22,6 +25,9 @@ function NewRoute() {
   const [start, setStart] = useState(null)
   const [end, setEnd] = useState(null)
   const [errors, setErrors] = useState([]);
+  const [saving, setSaving] = useState(false)
+  const { distance: fmtDistance } = useUnits()
+  usePageTitle('Plan a route')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [url, setUrl] = useState('');
@@ -61,11 +67,13 @@ function NewRoute() {
           image_url: url
         }
 
+        setSaving(true)
         const data = await dispatch(addRoute(payload))
+        setSaving(false)
         if (data) {
           setErrors(data)
         }else {
-          navigate(`/`)
+          navigate('/routes')
         }
       }
     }
@@ -80,128 +88,80 @@ function NewRoute() {
     }
   }
 
-  const styleStart = () => {
-    if (allowStart === true) {
-      return 'start-btn-active'
-    }else {
-      return 'start-btn'
-    }
-  }
-
-  const styleEnd = () => {
-    if (allowEnd === true) {
-      return 'end-btn-active'
-    }else {
-      return 'end-btn'
-    }
-  }
-
   useEffect(() => {
     setErrors([])
   }, [start, end, url])
 
+  const placing = allowStart ? 'start' : allowEnd ? 'end' : null
+  const hint = placing === 'start' ? 'Click the map to place the start.'
+    : placing === 'end' ? 'Click the map to place the finish.'
+    : 'Choose Set start or Set finish, then click the map. Drag a pin to adjust it.'
+
   return (
-    <div className='new-route-form-container'>
-      <div className='nrf-map-error-container'>
-        <div className='errors-container'>
-          {errors.map((error, ind) => (
-            <div key={ind} className='error-message'>{error}</div>
-          ))}
-        </div>
-        <div className='nrf-map'>
-          {isLoaded ?
-            <>
-              <div id='map'>
-                <GoogleMap
-                  zoom={4}
-                  center={center}
-                  mapContainerClassName='nrf-map-container'
-                  onClick={(e) => handleMarkerSet(e)}
-                >
-                  <Marker
-                    position={start}
-                    draggable={true}
-                    onDragEnd={(e) => setStart({ lat: e.latLng.lat(), lng: e.latLng.lng() })}
-                    title='Start Point'>
-                  </Marker >
-                  <Marker
-                    position={end}
-                    draggable={true}
-                    onDragEnd={(e) => setEnd({ lat: e.latLng.lat(), lng: e.latLng.lng() })}
-                    title='End Point'
-                  >
-                  </Marker >
-                </GoogleMap>
-              </div>
-            </>
-            :
-            <div className="loading-text">Loading....</div>
-          }
-        </div>
-      </div>
-      <div className='nrf-btn-form-container'>
-        <div className='nrf-btn-container'>
-          <button className={styleStart()}
-            onClick={() => {
-              setAllowStart(true)
-              setAllowEnd(false)
-            }}>Set Start Point</button>
-          <button className={styleEnd()}
-            onClick={() => {
-              setAllowEnd(true)
-              setAllowStart(false)
-            }}>Set End Point</button>
-        </div>
-        <div className='nrf-form-container'>
-            <div className='nrf-item-container'>
-              <label className='nrf-label'>Route Picture: </label>
-              <ImageUploadComponent setUrl={setUrl} />
-            </div>
-          <form className='nrf-form'
-          onSubmit={handleSubmit}
-          >
-            <div className='nrf-item-container'>
-              <label className='nrf-label'>Title: </label>
-              <input
-                type='text'
-                placeholder='title'
-                required
-                value={title}
-                className='nrf-input'
-                onChange={(e) => setTitle(e.target.value)}
-              />
-            </div>
-            <div className='nrf-item-container'>
-              <label className='nrf-label'>Description: </label>
-              <textarea
-                type='text'
-                placeholder='description'
-                required
-                value={description}
-                className='nrf-input'
-                onChange={(e) => setDescription(e.target.value)}
-              />
-            </div>
-            <div className='nrf-item-container'>
-              <label className='nrf-label'>Travel Type: </label>
-              <select
-                name='travelMode'
-                value={travelingMode}
-                className='nrf-input'
-                onChange={(e) => setTravelingMode(e.target.value)}
+    <div className='page new'>
+      <header className='new__head'>
+        <h1 className='new__title'>Plan a route</h1>
+        <p className='page-lead'>Place a start and a finish. Distance and time are worked out for you.</p>
+      </header>
+      <div className='new__grid'>
+        <section className='new__map-col' aria-label='Route map'>
+          <div className='segmented' role='group' aria-label='Which pin to place'>
+            <button type='button' aria-pressed={allowStart}
+              onClick={() => { setAllowStart(true); setAllowEnd(false) }}>Set start{start ? ' (placed)' : ''}</button>
+            <button type='button' aria-pressed={allowEnd}
+              onClick={() => { setAllowEnd(true); setAllowStart(false) }}>Set finish{end ? ' (placed)' : ''}</button>
+          </div>
+          <p className='field-hint' role='status'>{hint}</p>
+          <div className='media'>
+            {isLoaded ?
+              <GoogleMap
+                zoom={4}
+                center={center}
+                mapContainerClassName='new__map'
+                options={{ streetViewControl: false, mapTypeControl: false }}
+                onClick={(e) => handleMarkerSet(e)}
               >
-                <option value='' disabled>
-                  Select a travel type...
-                </option>
-                <option>WALKING</option>
-                <option>BICYCLING</option>
-              </select>
-            </div>
-            <div className='nrf-item-container'>
-            <button type='submit' className='update-btn'>Submit New Route</button>
-            </div>
-          </form>
-        </div>
+                <Marker position={start} draggable={true} title='Start'
+                  onDragEnd={(e) => setStart({ lat: e.latLng.lat(), lng: e.latLng.lng() })} />
+                <Marker position={end} draggable={true} title='Finish'
+                  onDragEnd={(e) => setEnd({ lat: e.latLng.lat(), lng: e.latLng.lng() })} />
+              </GoogleMap>
+              : <div className='skeleton new__map' role='status'>Loading map...</div>
+            }
+          </div>
+          {matrix && (
+            <p className='new__result'>
+              <strong>{fmtDistance(matrix.distanceM)}</strong> in about <strong>{formatDuration(matrix.durationS)}</strong>
+            </p>
+          )}
+        </section>
+        <form className='form card new__form' onSubmit={handleSubmit}>
+          <div className='form-errors' role='alert'>
+            {errors.map((error, ind) => (<p key={ind} className='form-error'>{error}</p>))}
+          </div>
+          <div className='field'>
+            <span className='field-label' id='nr-pic-label'>Cover picture</span>
+            <ImageUploadComponent setUrl={setUrl} labelledBy='nr-pic-label' />
+            {url && <p className='field-hint'>Picture uploaded.</p>}
+          </div>
+          <div className='field'>
+            <label htmlFor='nr-title'>Title</label>
+            <input id='nr-title' type='text' required className='input' value={title} onChange={(e) => setTitle(e.target.value)} />
+          </div>
+          <div className='field'>
+            <label htmlFor='nr-desc'>Description</label>
+            <textarea id='nr-desc' required className='textarea' value={description} onChange={(e) => setDescription(e.target.value)} />
+          </div>
+          <div className='field'>
+            <label htmlFor='nr-mode'>Travel mode</label>
+            <select id='nr-mode' required className='select' value={travelingMode} onChange={(e) => setTravelingMode(e.target.value)}>
+              <option value='' disabled>Choose how you will travel</option>
+              <option value='WALKING'>Walking</option>
+              <option value='BICYCLING'>Cycling</option>
+            </select>
+          </div>
+          <button type='submit' className='btn btn--primary btn--block' disabled={saving}>{saving ? 'Saving...' : 'Save route'}</button>
+        </form>
       </div>
     </div>
   )

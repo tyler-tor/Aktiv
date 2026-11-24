@@ -1,50 +1,27 @@
 import React from 'react'
 import { useDispatch } from 'react-redux'
-import { useState } from 'react';
 import { addFriend, deleteFriend } from '../../store/friends';
+import ConfirmForm from '../ui/ConfirmForm';
 
-function AdjustFriendStatusAlert({ userId, status, setStatus, onClose, setLoading }) {
+function AdjustFriendStatusAlert({ userId, status, setStatus, onClose, setLoading, name }) {
   const dispatch = useDispatch();
-  const [errors, setErrors] = useState([]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    let res;
-
-    if (!status) {
-      res = await dispatch(addFriend(userId))
-      if (res.errors) {
-        setErrors(res.errors)
-      } else {
-        setStatus(true)
-        onClose()
-      }
-    } else {
-      res = await dispatch(deleteFriend(userId))
-      if (res.errors) {
-        setErrors(res.errors)
-      } else {
-        setStatus(false)
-        onClose()
-      }
+  const submit = async () => {
+    const res = await dispatch(status ? deleteFriend(userId) : addFriend(userId))
+    if (res && res.errors) {
+      return res.errors
     }
+    setStatus(!status)
+    onClose()
     setLoading(true)
   }
 
   return (
-    <div className='friend-alert-wrapper'>
-      {errors.map((error, ind) => {
-        return (
-          <div key={ind} className='error-message'>
-            {error}
-          </div>
-        )
-      })}
-      <button className='confirm-afs-btn'
-        onClick={handleSubmit}>
-        Are you sure?
-      </button>
-    </div>
+    <ConfirmForm
+      title={status ? `Remove ${name || 'this person'} from friends?` : `Add ${name || 'this person'} as a friend?`}
+      message={status ? 'Their activity will no longer show in your Friends feed.' : 'Their routes and workouts will show in your Friends feed.'}
+      confirmLabel={status ? 'Remove friend' : 'Add friend'} danger={status}
+      onConfirm={submit} onClose={onClose} />
   )
 }
 

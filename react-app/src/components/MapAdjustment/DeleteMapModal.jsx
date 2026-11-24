@@ -6,14 +6,14 @@ import DeleteMapForm from './DeleteMapForm'
 function DeleteMapModal({ routeId }) {
     const [showModal, setShowModal] = useState(false)
     return (
-        <div>
-            <button className='delete-btn'
+        <>
+            <button type='button' className='btn btn--danger-outline btn--sm'
                 onClick={() => setShowModal(true)}>Delete</button>
             {showModal && (<Modal onClose={() => setShowModal(false)}>
                 <DeleteMapForm routeId={routeId}
                     onClose={() => setShowModal(false)} />
             </Modal>)}
-        </div>
+        </>
     )
 }
 

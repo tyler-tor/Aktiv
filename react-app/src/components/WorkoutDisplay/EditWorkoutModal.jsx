@@ -6,15 +6,15 @@ function EditWorkoutModal({ workout }) {
   const [showModal, setShowModal] = useState(false);
 
   return (
-    <div>
-      <button className='edit-btn' onClick={() => setShowModal(true)}>
+    <>
+      <button type='button' className='btn btn--secondary btn--sm' onClick={() => setShowModal(true)}>
         Edit
       </button>
       {showModal && (<Modal onClose={() => setShowModal(false)}>
         <EditWorkoutForm workout={workout}
           onClose={() => setShowModal(false)} />
       </Modal>)}
-    </div>
+    </>
   )
 }
 

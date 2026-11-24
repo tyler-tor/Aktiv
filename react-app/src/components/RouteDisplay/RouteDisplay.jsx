@@ -4,21 +4,26 @@ import { useGoogleMaps } from '../../context/GoogleMaps';
 import { useParams } from 'react-router';
 import { useSelector, useDispatch } from 'react-redux';
 import { getCurrentRoute } from '../../store/routes';
-import { NavLink } from 'react-router';
+import { Link } from 'react-router';
+import Avatar from '../ui/Avatar';
+import StatStrip from '../ui/StatStrip';
+import RouteSketch from '../RouteSketch/RouteSketch';
+import usePageTitle from '../../hooks/usePageTitle';
 import Comments from '../Comments/Comments';
 import MapAdjustment from '../MapAdjustment/MapAdjustment';
 import { useUnits } from '../../context/Units';
-import { formatDuration } from '../../utils/format';
+import { activityLabel, formatDate, formatDuration } from '../../utils/format';
 import { decodePolyline } from '../../utils/polyline';
 import { useFallbackDirections } from '../../hooks/useDirections';
 import { MAP_COLORS } from '../../theme';
-import './RouteDisplay.css';
+import '../ui/Detail.css';
 
 const DefaultCenter = {
     lat: 47.649133,
     lng: -117.420902
 };
 
+const MAP_OPTIONS = { streetViewControl: false, mapTypeControl: false, fullscreenControl: true };
 const POLYLINE_OPTIONS = { strokeColor: MAP_COLORS.route, strokeWeight: 5, strokeOpacity: 0.95 };
 
 
@@ -27,15 +32,27 @@ function RouteDisplay() {
     const route = useSelector(state => state.routes.currentRoute)
     const currUser = useSelector(state => state.session.user)
     const [map, setMap] = useState(null)
+    const [status, setStatus] = useState('loading')
     const dispatch = useDispatch()
     const { distance } = useUnits();
     const { isLoaded } = useGoogleMaps();
+    usePageTitle(route && String(route.id) === String(routeId) ? route.title : 'Route');
 
     // Load this one route (it used to reload every route again after every
     // Directions answer, which could loop). Editing the route puts the updated
     // route into the store, so nothing else needs to refetch.
     useEffect(() => {
-        dispatch(getCurrentRoute(routeId))
+        let cancelled = false
+        setStatus('loading')
+        ;(async () => {
+            try {
+                await dispatch(getCurrentRoute(routeId))
+                if (!cancelled) setStatus('done')
+            } catch {
+                if (!cancelled) setStatus('error')
+            }
+        })()
+        return () => { cancelled = true }
     }, [dispatch, routeId])
 
     // The path comes from the server (A28): decode it once per route.
@@ -54,96 +71,74 @@ function RouteDisplay() {
         map.fitBounds(bounds, 48)
     }, [map, route, path])
 
-    // (also hides the previously viewed route while the new one is loading)
-    if (!route || String(route.id) !== String(routeId)) {
-        return null
+    const current = route && String(route.id) === String(routeId) && route.ownerInfo ? route : null
+
+    if (!current) {
+        if (status === 'loading') {
+            return <div className='page detail'><div className='skeleton detail__skeleton' role='status'><span className='sr-only'>Loading route</span></div></div>
+        }
+        return (
+            <div className='page page--narrow'>
+                <div className='empty-state'>
+                    <h1>Route not found</h1>
+                    <p>It may have been deleted, or the link is wrong.</p>
+                    <Link to='/routes' className='btn btn--primary btn--sm'>Back to routes</Link>
+                </div>
+            </div>
+        )
     }
 
-    return route.ownerInfo && (
-        <div className='route-info-container'>
-            <div className='route-map-info-container'>
-                {isLoaded ?
-                    <>
-                        <div id='map'>
-                            <GoogleMap
+    const dist = distance(current.distanceM).split(' ')
+    const owner = current.ownerInfo
+
+    return (
+        <div className='page detail'>
+            <header className='detail__head'>
+                <div>
+                    <p className='detail__owner'>
+                        <Link to={`/users/${current.userId}`}><Avatar user={owner} size='sm' /> {owner.firstName} {owner.lastName}</Link>
+                        <span className='chip'>{activityLabel(current.travelMode)}</span>
+                        <time dateTime={current.createdAt}>{formatDate(current.createdAt)}</time>
+                    </p>
+                    <h1 className='detail__title'>{current.title}</h1>
+                </div>
+                {currUser.id === current.userId && <MapAdjustment route={current} />}
+            </header>
+            <div className='detail__grid'>
+                <div className='detail__main'>
+                    <div className='media'>
+                        {isLoaded
+                            ? <GoogleMap
                                 zoom={10}
-                                center={route.startingPoint || DefaultCenter}
-                                mapContainerClassName='route-map-container'
+                                center={current.startingPoint || DefaultCenter}
+                                mapContainerClassName='detail__map'
+                                options={MAP_OPTIONS}
                                 onLoad={setMap}
                                 onUnmount={() => setMap(null)}
                             >
                                 {path.length >= 2 && <Polyline path={path} options={POLYLINE_OPTIONS} />}
                                 {fallback && <DirectionsRenderer options={{ directions: fallback, suppressMarkers: true }} />}
-                                <Marker position={route.startingPoint} title='Start' />
-                                <Marker position={route.endingPoint} title='Finish' />
+                                <Marker position={current.startingPoint} title='Start' />
+                                <Marker position={current.endingPoint} title='Finish' />
                             </GoogleMap>
-                        </div>
-                    </>
-
-                    :
-                    <div className="loading-text">Loading....</div>
-                }
-            </div>
-            <div className='ui-comment-container'>
-                <div className='ur-info-container'>
-                    <div className='user-details-container'>
-                        <NavLink to={`/users/${route?.userId}`} className='username-text'>{route?.ownerInfo?.username}</NavLink>
-                        <ul className='name-list'>
-                            <li className='first-name'>
-                                {route?.ownerInfo.firstName}
-                            </li>
-                            <li className='last-name'>
-                                {route?.ownerInfo.lastName}
-                            </li>
-                        </ul>
-                        <img src={route?.ownerInfo.profilePicture}
-                        alt='owner'
-                            className='user-propic' />
-                        <div className='route-pic-container'>
-                            <img src={route?.imageUrl}
-                                alt='Route'
-                                className='route-pic' />
-                        </div>
+                            : <RouteSketch polyline={current.polyline} start={current.startingPoint} end={current.endingPoint} title={current.title} />}
                     </div>
-                    <div className='ri-items-container'>
-                        <ul className='ri-items-list'>
-                            <li className='ri-item'>
-                                <strong>Title: </strong>
-                                {'   '}
-                                <p>
-                                    {route?.title}
-                                </p>
-                            </li>
-                            <li className='ri-item'>
-                                <strong>Description: </strong>
-                                <p>
-                                    {route?.description}
-                                </p>
-                            </li>
-                            <li className='ri-item'>
-                                <strong>Distance: </strong>
-                                <p>
-                                    {distance(route?.distanceM)}{route?.durationS ? ` (about ${formatDuration(route.durationS)})` : ''}
-                                </p>
-                            </li>
-                            <li className='ri-item'>
-                                <strong>Travel Type: </strong>
-                                <p>
-                                    {route?.travelMode}
-                                </p>
-                            </li>
-                        </ul>
-                        {currUser.id === route?.userId &&
-                            <MapAdjustment route={route} />
-                        }
-                    </div>
+                    <p className='detail__desc'>{current.description}</p>
                 </div>
-                <div className='comm-box-container'>
-                    <div className='comments-container'>
-                        <Comments id={route.id} />
-                    </div>
-                </div>
+                <aside className='detail__side card'>
+                    <StatStrip items={[
+                        { label: 'Distance', value: dist[0], unit: dist.slice(1).join(' ') },
+                        { label: 'Estimated time', value: current.durationS ? formatDuration(current.durationS) : '' },
+                    ]} />
+                    <ul className='detail__legend'>
+                        <li><span className='dot dot--start' aria-hidden='true' /> Start</li>
+                        <li><span className='dot dot--end' aria-hidden='true' /> Finish</li>
+                    </ul>
+                </aside>
             </div>
+            <section className='detail__comments' id='comments' aria-labelledby='comments-h'>
+                <Comments id={current.id} />
+            </section>
         </div>
     )
 }

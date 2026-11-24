@@ -1,10 +1,7 @@
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-    font-family: 'PT Sans', sans-serif;
-  }
-
-body {
-    background-image: linear-gradient(to left top, #385170, #384e69, #384c62, #39495c, #394655);
-}
+/* Fonts: Bricolage Grotesque (headlines and numbers) and Figtree (text), both
+   SIL Open Font License, self-hosted through @fontsource (no Google Fonts request). */
+@import '@fontsource-variable/bricolage-grotesque/index.css';
+@import '@fontsource-variable/figtree/index.css';
+@import './styles/tokens.css';
+@import './styles/base.css';
+@import './styles/components.css';

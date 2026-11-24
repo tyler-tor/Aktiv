@@ -4,7 +4,6 @@ import { updateRoute } from '../../store/routes';
 import { GoogleMap, Marker } from '@react-google-maps/api';
 import { useDistanceMatrix } from '../../hooks/useDirections';
 import { useGoogleMaps } from '../../context/GoogleMaps';
-import './MapAdjustment.css'
 
 
 function EditMapForm({ route, onClose }) {
@@ -13,6 +12,7 @@ function EditMapForm({ route, onClose }) {
     const [start, setStart] = useState({ ...route?.startingPoint })
     const [end, setEnd] = useState({ ...route?.endingPoint })
     const [errors, setErrors] = useState([]);
+    const [saving, setSaving] = useState(false);
     const [title, setTitle] = useState(route?.title)
     const [description, setDescription] = useState(route?.description)
     const [travelingMode, setTravelingMode] = useState(route?.travelMode)
@@ -45,7 +45,9 @@ function EditMapForm({ route, onClose }) {
             duration_s: duration,
             image_url: route.imageUrl
         }
+        setSaving(true)
         const res = await dispatch(updateRoute(payload))
+        setSaving(false)
         if (res) {
             setErrors(res)
         } else {
@@ -63,90 +65,43 @@ function EditMapForm({ route, onClose }) {
     }
 
     return (
-        <div className='edit-map-form-container'>
-            <div className='emf-mapadjust-container'>
-                <div className='errors-container'>
-                    {errors.map((error, ind) => (
-                        <div key={ind} className='error-message'>{error}</div>
-                    ))}
-                </div>
-                <div className='emf-mapadjust'>
-                    {isLoaded ?
-                        <>
-                            <div id='map'>
-                                <GoogleMap
-                                    zoom={6}
-                                    center={center}
-                                    mapContainerClassName='emf-map-container'
-                                >
-                                    {route && (
-                                        <>
-                                            <Marker
-                                                position={start}
-                                                draggable={true}
-                                                onDragEnd={(e) =>setStart({ lat: e.latLng.lat(), lng: e.latLng.lng() })}
-                                                title='Start Point'>
-                                            </Marker >
-                                            <Marker
-                                                position={end}
-                                                draggable={true}
-                                                onDragEnd={(e) => setEnd({ lat: e.latLng.lat(), lng: e.latLng.lng() })}
-                                                title='End Point'
-                                            >
-                                            </Marker >
-                                        </>
-                                    )
-                                    }
-                                </GoogleMap>
-                            </div>
-                        </>
-                        :
-                        <div className="loading-text">Loading....</div>
-                    }
-                </div>
-                <div className='emf-form-container'>
-                    <form className='emf-form'
-                        onSubmit={handleSubmit}>
-                        <div className='emf-item-container'>
-                            <label className='emf-label'>Update Title: </label>
-                            <input
-                                type='text'
-                                placeholder='title'
-                                required
-                                value={title}
-                                onChange={(e) => setTitle(e.target.value)}
-                                className='emf-input'
-                            />
-                        </div>
-                        <div className='emf-item-container'>
-                            <label className='emf-label'>Update Description: </label>
-                            <textarea
-                                type='text'
-                                placeholder='description'
-                                required
-                                value={description}
-                                onChange={(e) => setDescription(e.target.value)}
-                                className='emf-input'
-                            />
-                        </div>
-                        <div className='emf-item-container'>
-                            <label className='emf-label'>Update Travel Mode: </label>
-                            <select
-                                name='travelMode'
-                                value={travelingMode}
-                                onChange={(e) => setTravelingMode(e.target.value)}
-                                className='emf-input'
-                            >
-                                <option>WALKING</option>
-                                <option>BICYCLING</option>
-                            </select>
-                        </div>
-                        <div className='emf-item-container'>
-                            <button type='submit' className='update-btn'>Update Route</button>
-                        </div>
-                    </form>
-                </div>
+        <div className='dialog dialog--wide'>
+            <h2 className='dialog__title'>Edit route</h2>
+            <p className='dialog__text'>Drag the pins to change the start or finish.</p>
+            <div className='edit-map'>
+                {isLoaded
+                    ? <GoogleMap zoom={6} center={center} mapContainerClassName='edit-map__map'>
+                        <Marker position={start} draggable={true} title='Start'
+                            onDragEnd={(e) => setStart({ lat: e.latLng.lat(), lng: e.latLng.lng() })} />
+                        <Marker position={end} draggable={true} title='Finish'
+                            onDragEnd={(e) => setEnd({ lat: e.latLng.lat(), lng: e.latLng.lng() })} />
+                    </GoogleMap>
+                    : <div className='skeleton edit-map__map' role='status'>Loading map...</div>}
             </div>
+            <form className='form' onSubmit={handleSubmit}>
+                <div className='form-errors' role='alert'>
+                    {errors.map((error, ind) => (<p key={ind} className='form-error'>{error}</p>))}
+                </div>
+                <div className='field'>
+                    <label htmlFor='em-title'>Title</label>
+                    <input id='em-title' type='text' required className='input' value={title} onChange={(e) => setTitle(e.target.value)} />
+                </div>
+                <div className='field'>
+                    <label htmlFor='em-desc'>Description</label>
+                    <textarea id='em-desc' required className='textarea' value={description} onChange={(e) => setDescription(e.target.value)} />
+                </div>
+                <div className='field'>
+                    <label htmlFor='em-mode'>Travel mode</label>
+                    <select id='em-mode' className='select' value={travelingMode} onChange={(e) => setTravelingMode(e.target.value)}>
+                        <option value='WALKING'>Walking</option>
+                        <option value='BICYCLING'>Cycling</option>
+                    </select>
+                </div>
+                <div className='btn-row dialog__actions'>
+                    <button type='button' className='btn btn--secondary' onClick={onClose} disabled={saving}>Cancel</button>
+                    <button type='submit' className='btn btn--primary' disabled={saving}>{saving ? 'Saving...' : 'Save route'}</button>
+                </div>
+            </form>
         </div>
     )
 }

@@ -8,6 +8,7 @@ function EditWorkoutForm({ workout, onClose }) {
   const currUser = useSelector(state => state.session.user);
   const dispatch = useDispatch();
   const [errors, setErrors] = useState([]);
+  const [saving, setSaving] = useState(false);
   const [title, setTitle] = useState(workout?.title)
   const [type, setType] = useState(workout?.type)
   const [description, setDescription] = useState(workout?.description);
@@ -31,7 +32,9 @@ function EditWorkoutForm({ workout, onClose }) {
       image_url: workout.imageUrl
     }
 
+    setSaving(true)
     const res = await dispatch(updateWorkout(payload))
+    setSaving(false)
     if (res) {
       setErrors(res)
     } else {
@@ -47,105 +50,65 @@ function EditWorkoutForm({ workout, onClose }) {
   };
 
   return (
-    <div className='edit-workout-form-wrapper'>
-      <div className='ewf-container'>
-        <form className='ewf-form'
-          onSubmit={handleSubmit}>
-      <div className='ewf-item'>
-        {errors.map((error, ind) => (
-          <div key={ind} className='error-message'>{error}</div>
-        ))}
-      </div>
-          <div className='ewf-item'>
-            <label className='ewf-label'>Workout Title: </label>
-            <input
-              type='text'
-              placeholder='title'
-              required
-              value={title}
-              className='ewf-input'
-              onChange={(e) => setTitle(e.target.value)}
-            />
+    <div className='dialog dialog--wide'>
+      <h2 className='dialog__title'>Edit workout</h2>
+      <form className='form' onSubmit={handleSubmit}>
+        <div className='form-errors' role='alert'>
+          {errors.map((error, ind) => (<p key={ind} className='form-error'>{error}</p>))}
+        </div>
+        <div className='field'>
+          <label htmlFor='ew-title'>Title</label>
+          <input id='ew-title' type='text' required className='input' value={title} onChange={(e) => setTitle(e.target.value)} />
+        </div>
+        <div className='field'>
+          <label htmlFor='ew-desc'>Description</label>
+          <textarea id='ew-desc' required className='textarea' value={description} onChange={(e) => setDescription(e.target.value)} />
+        </div>
+        <div className='field'>
+          <label htmlFor='ew-type'>Type</label>
+          <select id='ew-type' className='select' required value={type} onChange={(e) => setType(e.target.value)}>
+            <option>Walk</option>
+            <option>Run</option>
+            <option>Hike</option>
+            <option>Bike</option>
+            <option>Cardio</option>
+            <option>Weight</option>
+          </select>
+        </div>
+        <fieldset className='field fieldset'>
+          <legend className='field-label'>Time</legend>
+          <div className='field-row'>
+            <div className='field'>
+              <label htmlFor='ew-hour' className='field-hint'>Hours</label>
+              <input id='ew-hour' type='number' min='0' required className='input' value={hour} onChange={(e) => setHour(e.target.value)} />
+            </div>
+            <div className='field'>
+              <label htmlFor='ew-min' className='field-hint'>Minutes</label>
+              <input id='ew-min' type='number' min='0' max='59' required className='input' value={minute} onChange={(e) => setMinute(e.target.value)} />
+            </div>
           </div>
-          <div className='ewf-item'>
-            <label className='ewf-label'>Workout Description: </label>
-            <textarea
-              type='text'
-              placeholder='description'
-              required
-              value={description}
-              className='ewf-input-ta'
-              onChange={(e) => setDescription(e.target.value)}
-            />
+        </fieldset>
+        <fieldset className='field fieldset'>
+          <legend className='field-label'>Distance</legend>
+          <div className='field-row'>
+            <div className='field'>
+              <label htmlFor='ew-dist' className='sr-only'>Distance</label>
+              <input id='ew-dist' type='number' min='0' step='any' required className='input' value={distance} onChange={(e) => setDistance(e.target.value)} />
+            </div>
+            <div className='field'>
+              <label htmlFor='ew-unit' className='sr-only'>Distance unit</label>
+              <select id='ew-unit' className='select' value={distanceMeasurement} onChange={(e) => changeMeasurement(e.target.value)}>
+                <option value='miles'>miles</option>
+                <option value='kilometers'>kilometers</option>
+              </select>
+            </div>
           </div>
-          <div className='ewf-item'>
-            <label className='ewf-label'>Workout Type: </label>
-            <select
-              name='type'
-              value={type}
-              className='ewf-input'
-              required
-              onChange={(e) => setType(e.target.value)}
-            >
-              <option value='' disabled>
-                Select a workout type...
-              </option>
-              <option>Walk</option>
-              <option>Run</option>
-              <option>Hike</option>
-              <option>Bike</option>
-              <option>Cardio</option>
-              <option>Weight</option>
-            </select>
-          </div>
-          <div className='ewf-item'>
-            <label className='ewf-label'>Workout Duration: </label>
-            <input
-              type='number'
-              placeholder='hour'
-              required
-              value={hour}
-              className='ewf-input'
-              onChange={(e) => setHour(e.target.value)}
-            />
-            <input
-              type='number'
-              placeholder='minute'
-              required
-              value={minute}
-              className='ewf-input'
-              onChange={(e) => setMinute(e.target.value)}
-            />
-          </div>
-          <div className='ewf-item'>
-            <label className='ewf-label'>Workout Distance: </label>
-            <input
-              type='number'
-              placeholder='distance'
-              required
-              value={distance}
-              className='ewf-input'
-              onChange={(e) => setDistance(e.target.value)}
-            />
-            <select
-              name='type'
-              value={distanceMeasurement}
-              className='ewf-input'
-              required
-              onChange={(e) => changeMeasurement(e.target.value)}
-            >
-              <option value='' disabled>
-                Select a distance measurement...
-              </option>
-              <option>miles</option>
-              <option>kilometers</option>
-            </select>
-          </div>
-          <div className='ewf-item'>
-          <button type='submit' className='update-btn'>Edit Workout</button>
-          </div>
-        </form>
-      </div>
+        </fieldset>
+        <div className='btn-row dialog__actions'>
+          <button type='button' className='btn btn--secondary' onClick={onClose} disabled={saving}>Cancel</button>
+          <button type='submit' className='btn btn--primary' disabled={saving}>{saving ? 'Saving...' : 'Save workout'}</button>
+        </div>
+      </form>
     </div>
   )
 }

@@ -1,115 +1,48 @@
-
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useSelector } from 'react-redux';
-import { NavLink } from 'react-router';
+import { Link, NavLink } from 'react-router';
+import { FiPlus } from 'react-icons/fi';
 import LogoutButton from './auth/LogoutButton';
+import Logo from './ui/Logo';
 import { useUnits } from '../context/Units';
-import './NavBar.css'
+import './NavBar.css';
 
 const NavBar = () => {
-
-  const [click, setClick] = useState(false);
-  const [button, setButton] = useState(true);
-  const user = useSelector((state) => state.session.user)
+  const user = useSelector((state) => state.session.user);
   const { unit, toggleUnit } = useUnits();
 
-  const handleClick = () => setClick(!click);
-  const closeMobileMenu = () => setClick(false);
-
-  const showButton = () => {
-    if (window.innerWidth <= 960) {
-      setButton(false);
-    } else {
-      setButton(true);
-    }
-  };
-
-  useEffect(() => {
-    showButton();
-  }, []);
-
-  window.addEventListener('resize', showButton);
-
   return (
-    <>
-      <nav className='navbar'>
-        <div className='navbar-container'>
-          <NavLink to='/' className='navbar-logo' onClick={closeMobileMenu}>
-            AKTIV <i className="fab fa-strava"></i>
-          </NavLink>
-          <div className='menu-icon' onClick={handleClick}>
-            <i className={click ? 'fas fa-times' : 'fas fa-bars'} />
-          </div>
-          {!user ? (
-            <ul className={click ? 'nav-menu active' : 'nav-menu'}>
-              <li className='nav-item'>
-                <NavLink to='/' end
-                  className='nav-links' onClick={closeMobileMenu}>
-                  Login
-                </NavLink>
-              </li>
-              <li className='nav-item'>
-                <NavLink to='/sign-up' end
-                  className='nav-links' onClick={closeMobileMenu}>
-                  Sign Up
-                </NavLink>
-              </li>
-            </ul>
-          ) : (
-            <>
-              <ul className={click ? 'nav-menu active' : 'nav-menu'}>
-                <li className='nav-item'>
-                  <NavLink to='/' end
-                    className='nav-links' onClick={closeMobileMenu}>
-                    Map
-                  </NavLink>
-                </li>
-                <li className='nav-item'>
-                  <NavLink to='/routes' end
-                    className='nav-links' onClick={closeMobileMenu}>
-                    Routes
-                  </NavLink>
-                </li>
-                <li className='nav-item'>
-                  <NavLink to='/activity' end
-                    className='nav-links' onClick={closeMobileMenu}>
-                    Activity
-                  </NavLink>
-                </li>
-                <li className='nav-item'>
-                  <NavLink to='/users' end
-                    className='nav-links' onClick={closeMobileMenu}>
-                    Users
-                  </NavLink>
-                </li>
-                <li className='nav-item'>
-                  <NavLink to='/newRoute' end
-                    className='nav-links' onClick={closeMobileMenu}>
-                    + Route
-                  </NavLink>
-                </li>
-                <li className='nav-item'>
-                  <NavLink to='/newWorkout' end
-                    className='nav-links' onClick={closeMobileMenu}>
-                    + Workout
-                  </NavLink>
-                </li>
-                <li className='nav-item'>
-                  <NavLink to='/sign-up' className='nav-links-mobile' onClick={closeMobileMenu}>
-                    Sign Up
-                  </NavLink>
-                </li>
-              </ul>
-              <button type='button' className='btn btn--outline btn--medium unit-toggle' onClick={toggleUnit}
+    <header className='navbar'>
+      <div className='navbar__inner'>
+        <Link to='/' className='navbar__logo' aria-label='Aktiv home'>
+          <Logo />
+        </Link>
+        {!user ? (
+          <nav className='navbar__menu' aria-label='Main'>
+            <NavLink to='/' end className='navbar__link'>Log in</NavLink>
+            <NavLink to='/sign-up' className='btn btn--primary btn--sm'>Sign up</NavLink>
+          </nav>
+        ) : (
+          <>
+            <nav className='navbar__menu' aria-label='Main'>
+              <NavLink to='/' end className='navbar__link'>Map</NavLink>
+              <NavLink to='/routes' className='navbar__link'>Routes</NavLink>
+              <NavLink to='/activity' className='navbar__link'>Activity</NavLink>
+              <NavLink to='/users' className='navbar__link'>People</NavLink>
+            </nav>
+            <div className='navbar__actions'>
+              <NavLink to='/newRoute' className='btn btn--primary btn--sm'><FiPlus aria-hidden='true' />Route</NavLink>
+              <NavLink to='/newWorkout' className='btn btn--secondary btn--sm'><FiPlus aria-hidden='true' />Workout</NavLink>
+              <button type='button' className='btn btn--ghost btn--sm unit-toggle' onClick={toggleUnit}
                 aria-label={`Distances are shown in ${unit === 'km' ? 'kilometres' : 'miles'}. Switch to ${unit === 'km' ? 'miles' : 'kilometres'}`}>
                 {unit}
               </button>
-              {button && <LogoutButton buttonStyle='btn--outline' />}
-            </>
-          )}
-        </div>
-      </nav>
-    </>
+              <LogoutButton />
+            </div>
+          </>
+        )}
+      </div>
+    </header>
   );
 }
 

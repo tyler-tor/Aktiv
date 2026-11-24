@@ -1,0 +1,104 @@
+/*
+  Aktiv design tokens: every colour, size and curve used by the app lives here.
+  Components only use var(--...) so a re-skin means editing this file.
+
+  Palette: "ultramarine on lavender paper". One strong accent (ultramarine
+  indigo, --accent) on cool off-white surfaces, with a deep indigo ink for text.
+  Contrast, measured against WCAG 2.2 AA (text 4.5:1, UI outlines 3:1):
+  light  text #14103F on #F6F6FB 16.6, muted #55557A on #FFFFFF 7.1 (on #EFEEFA 6.2),
+         accent #3B2FD9 on white 8.1 and white on accent 8.1, danger on white 6.6,
+         input/button outlines #7D79B3 on white 4.0.
+  dark   text #EEEDFF on #17143A 15.2, muted #A9A6D6 on #17143A 7.6,
+         accent #8C84FF on #17143A 5.7 and dark ink on accent 6.3,
+         outlines #6C67BD on #17143A 3.6.
+  (re-check with a script when you change a colour; see CHANGES.md A34)
+*/
+:root {
+  color-scheme: light dark;
+
+  /* colour */
+  --bg: #F6F6FB;
+  --surface: #FFFFFF;
+  --surface-2: #EFEEFA;
+  --text: #14103F;
+  --text-muted: #55557A;
+  --border: #DAD8EE;
+  --border-strong: #7D79B3;
+  --accent: #3B2FD9;
+  --accent-hover: #2E24B0;
+  --accent-soft: #E4E1FF;
+  --on-accent: #FFFFFF;
+  --focus: #3B2FD9;
+  --danger: #B42318;
+  --danger-soft: #FDECEA;
+  --success: #05603A;
+  --success-soft: #E3F6EC;
+  --sketch-bg: #E9E7FF;
+  --sketch-line: #CFCAFF;
+  --nav-bg: rgb(255 255 255 / 0.88);
+  --overlay: rgb(20 16 63 / 0.55);
+
+  /* type */
+  --font-display: 'Bricolage Grotesque Variable', 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'Figtree Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --text-xs: 0.8125rem;
+  --text-sm: 0.9375rem;
+  --text-base: 1.0625rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.625rem;
+  --text-2xl: clamp(1.9rem, 1.4rem + 2vw, 2.75rem);
+  --text-3xl: clamp(2.4rem, 1.5rem + 4vw, 4.25rem);
+  --text-stat: clamp(1.6rem, 1.2rem + 1.4vw, 2.25rem);
+  --leading-tight: 1.1;
+  --leading-body: 1.55;
+
+  /* spacing (4px grid) */
+  --s-1: 0.25rem;
+  --s-2: 0.5rem;
+  --s-3: 0.75rem;
+  --s-4: 1rem;
+  --s-5: 1.5rem;
+  --s-6: 2rem;
+  --s-7: 3rem;
+  --s-8: 4.5rem;
+
+  /* shape */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 20px;
+  --r-xl: 28px;
+  --r-pill: 999px;
+  --shadow-lift: 0 1px 2px rgb(20 16 63 / 0.06), 0 12px 32px -12px rgb(20 16 63 / 0.25);
+
+  /* layout */
+  --nav-h: 64px;
+  --page-w: 1120px;
+  --read-w: 720px;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0D0B24;
+    --surface: #17143A;
+    --surface-2: #1F1B4D;
+    --text: #EEEDFF;
+    --text-muted: #A9A6D6;
+    --border: #2D2965;
+    --border-strong: #6C67BD;
+    --accent: #8C84FF;
+    --accent-hover: #A8A2FF;
+    --accent-soft: #201C5A;
+    --on-accent: #0D0B24;
+    --focus: #B9B4FF;
+    --danger: #FF8A7D;
+    --danger-soft: #3D1A24;
+    --success: #6EDBA1;
+    --success-soft: #12342A;
+    --sketch-bg: #1F1B4D;
+    --sketch-line: #34308A;
+    --nav-bg: rgb(23 20 58 / 0.88);
+    --overlay: rgb(5 4 20 / 0.7);
+    --shadow-lift: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px -12px rgb(0 0 0 / 0.6);
+  }
+}

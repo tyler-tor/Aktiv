@@ -1,61 +1,44 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { useDispatch } from 'react-redux';
 import { newRouteComment, newWorkoutComment } from '../../store/comments';
-import './AddCommentForm.css'
 
 function AddCommentForm({ onClose, id, kind = 'route' }) {
     const [errors, setErrors] = useState([]);
     const [commentInput, setCommentInput] = useState('');
+    const [busy, setBusy] = useState(false);
     const dispatch = useDispatch();
-
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         const payload = kind === 'workout'
             ? { body: commentInput, workoutId: id }
             : { body: commentInput, routeId: id }
-
-        await dispatch(kind === 'workout' ? newWorkoutComment(payload) : newRouteComment(payload)).then((res) => {
-            if (res) {
-                setErrors(res)
-            }else {
-                onClose()
-            }
-        })
+        setBusy(true)
+        const res = await dispatch(kind === 'workout' ? newWorkoutComment(payload) : newRouteComment(payload))
+        if (res) {
+            setErrors(res)
+            setBusy(false)
+        } else {
+            onClose()
+        }
     };
 
-    useEffect(() => {
-        setErrors([])
-    }, [commentInput])
-
     return (
-        <div className="add-comm-container">
-            <form onSubmit={handleSubmit} className="ac-form">
-                <ul className='err-ul'>
-                    {errors.length && errors.map((error) => (
-                        <li key={error}
-                            className='err-li'>{error}
-                        </li>
-                    ))}
-                </ul>
-                <div className="ac-input-wrapper">
-                    <input
-                        type="text"
-                        placeholder="comment"
-                        required
-                        value={commentInput}
-                        onChange={(e) => setCommentInput(e.target.value)}
-                        className='ac-input'
-                        size={50}
-                    />
-                </div>
-                <div className="ac-sub-btn-container">
-                    <button className={'btn btn--outline btn--medium'} type="submit" onClick={handleSubmit}>
-                        Submit
-                    </button>
-                </div>
-            </form>
-        </div>
+        <form onSubmit={handleSubmit} className='form dialog'>
+            <h2 className='dialog__title'>Add a comment</h2>
+            <div className='form-errors' role='alert'>
+                {errors.map((error) => (<p key={error} className='form-error'>{error}</p>))}
+            </div>
+            <div className='field'>
+                <label htmlFor='add-comment'>Comment</label>
+                <textarea id='add-comment' required maxLength={500} className='textarea' value={commentInput}
+                    onChange={(e) => { setCommentInput(e.target.value); setErrors([]) }} />
+            </div>
+            <div className='btn-row dialog__actions'>
+                <button type='button' className='btn btn--secondary' onClick={onClose} disabled={busy}>Cancel</button>
+                <button className='btn btn--primary' type='submit' disabled={busy || !commentInput.trim()}>{busy ? 'Posting...' : 'Post comment'}</button>
+            </div>
+        </form>
     )
 }
 

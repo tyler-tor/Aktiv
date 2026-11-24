@@ -1,37 +1,26 @@
 import React from 'react'
-import { Link } from 'react-router'
+import { FiGithub, FiLinkedin } from 'react-icons/fi'
+import Logo from './ui/Logo'
 import './Footer.css'
 
 function Footer() {
   return (
-    <div className='footer-container'>
-        <section className='social-media'>
-            <div className='social-media-wrap'>
-                <div className='footer-logo'>
-                    <Link to='/' className='social-logo'>
-                        AKTIV <i className='fab fa-strava'></i>
-                    </Link>
-                </div>
-                {/* <small className='website-rights'>Capstone Strava Clone</small> */}
-                <div className='social-icons'>
-                    <a href='https://www.linkedin.com/in/derek-torrero-02823018a/'
-                    target='_blank'
-                    rel="noreferrer"
-                    className='social-icon-link linkedin'
-                    aria-label='Linkedin'>
-                        <i className='fab fa-linkedin'></i>
-                    </a>
-                    <a href='https://github.com/tyler-tor'
-                    target='_blank'
-                    rel="noreferrer"
-                    className='social-icon-link github'
-                    aria-label='GitHub'>
-                        <i className='fab fa-github'></i>
-                    </a>
-                </div>
-            </div>
-        </section>
-    </div>
+    <footer className='footer'>
+      <div className='footer__inner'>
+        <Logo />
+        <p className='footer__text'>Plan routes, log workouts, cheer on your friends.</p>
+        <div className='footer__links'>
+          <a href='https://www.linkedin.com/in/derek-torrero-02823018a/' target='_blank' rel='noreferrer'
+            className='icon-btn' aria-label='LinkedIn (opens in a new tab)'>
+            <FiLinkedin aria-hidden='true' />
+          </a>
+          <a href='https://github.com/tyler-tor' target='_blank' rel='noreferrer'
+            className='icon-btn' aria-label='GitHub (opens in a new tab)'>
+            <FiGithub aria-hidden='true' />
+          </a>
+        </div>
+      </div>
+    </footer>
   )
 }
 

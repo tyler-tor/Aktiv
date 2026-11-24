@@ -1,5 +1,12 @@
-/* .homepage-container { */
-    /* width: 100vw;
-    height: 100vh; */
-    /* background-color: #242424;
-} */
+.homepage { position: relative; height: calc(100vh - var(--nav-h)); height: calc(100dvh - var(--nav-h)); min-height: 420px; }
+.homepage__panel {
+  position: absolute; z-index: 2; left: var(--s-4); top: var(--s-4); width: min(20rem, calc(100% - 2 * var(--s-4)));
+  display: grid; gap: var(--s-2); justify-items: start;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: var(--s-4) var(--s-5);
+  box-shadow: var(--shadow-2);
+}
+.homepage__panel h1 { font-size: var(--text-xl); }
+.homepage__panel p { color: var(--text-muted); font-size: var(--text-sm); margin-bottom: var(--s-2); }
+@media (max-width: 640px) {
+  .homepage__panel { top: auto; bottom: var(--s-4); }
+}

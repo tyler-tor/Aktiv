@@ -1,17 +1,14 @@
 import { GoogleMap, Marker, InfoWindow } from "@react-google-maps/api";
 import { useGoogleMaps } from "../../context/GoogleMaps";
 import React, { useMemo, useState } from "react";
-import { NavLink } from "react-router";
+import { Link } from "react-router";
 import { useEffect } from "react";
 import { useSelector, useDispatch } from 'react-redux'
 import { getAllRoutes } from "../../store/routes";
 import { useUnits } from "../../context/Units";
 import './MapComponent.css'
 
-const containerStyle = {
-    width: '100vw',
-    height: '84vh'
-};
+const containerStyle = { width: '100%', height: '100%' };
 
 
 const MapComponent = ({ lat, lng }) => {
@@ -40,7 +37,7 @@ const MapComponent = ({ lat, lng }) => {
 
     return routes && isLoaded ? (
         <>
-            <div id='map'>
+            <div id='map' className='map-wrap'>
                 <GoogleMap
                     mapContainerStyle={containerStyle}
                     zoom={4}
@@ -65,18 +62,16 @@ const MapComponent = ({ lat, lng }) => {
                             setSelected(null)
                         }}>
                             <div className="iw-container">
-                                <p>Click title to view Route...</p>
-                                <NavLink to={`/routes/${selected.route.id}`}
-                                className='iw-title'>{selected.route.title}</NavLink>
+                                <Link to={`/routes/${selected.route.id}`} className='iw-title'>{selected.route.title}</Link>
+                                <p className="iw-meta">{distance(selected.route.distanceM)}</p>
                                 <p className="iw-description">{selected.route.description}</p>
-                                <p className="iw-description">{distance(selected.route.distanceM)}</p>
                             </div>
                         </InfoWindow>
                     ) : null}
                 </GoogleMap>
             </div>
         </>
-    ) : <div className="loading-text">Loading....</div>;
+    ) : <div className="map-loading skeleton" role="status">Loading map...</div>;
 }
 
 export default React.memo(MapComponent)

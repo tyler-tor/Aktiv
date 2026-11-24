@@ -1,26 +1,20 @@
 import React, { useState } from 'react'
 import { Modal } from '../../context/Modal';
 import AddCommentForm from '../AddCommentForm/AddCommentForm';
-import '../auth/Buttons.css'
 
 function AddCommentModal({ id, kind = 'route' }) {
   const [showModal, setShowModal] = useState(false)
 
   return (
-    <div className='add-btn-container'>
-      <button className={'btn btn--outline btn--medium'}
-        type='submit'
-        onClick={() => setShowModal(true)}>Add Comment</button>
+    <>
+      <button className='btn btn--secondary btn--sm' type='button'
+        onClick={() => setShowModal(true)}>Add comment</button>
       {showModal && (
         <Modal onClose={() => setShowModal(false)}>
-          <AddCommentForm
-            id={id}
-            kind={kind}
-            onClose={() => setShowModal(false)}
-          />
+          <AddCommentForm id={id} kind={kind} onClose={() => setShowModal(false)} />
         </Modal>
       )}
-    </div>
+    </>
   )
 }
 

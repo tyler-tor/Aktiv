@@ -6,14 +6,14 @@ function EditMapModal({route}) {
     const [showModal, setShowModal] = useState(false)
 
     return (
-        <div>
-            <button className='edit-btn'
+        <>
+            <button type='button' className='btn btn--secondary btn--sm'
             onClick={() => setShowModal(true)}>Edit</button>
             {showModal && (<Modal onClose={() => setShowModal(false)}>
                 <EditMapForm route={route}
                 onClose={() => setShowModal(false)} />
             </Modal>)}
-        </div>
+        </>
 
     )
 }

@@ -1,81 +1,21 @@
 .navbar {
-  background-image: linear-gradient(to bottom, #242424, #313131, #3e3f3f, #4c4d4d, #5b5c5b);
-    height: 80px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 1.2rem;
-    position: sticky;
-    top: 0;
-    z-index: 999;
-  }
-
-  .navbar-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 80px;
-    max-width: 1500px;
-  }
-
-  .navbar-logo {
-    color: #fff;
-    justify-self: start;
-    margin-left: 10px;
-    cursor: pointer;
-    text-decoration: none;
-    font-size: 2rem;
-    display: flex;
-    align-items: center;
-  }
-
-  .fa-strava {
-    margin-left: 0.5rem;
-    font-size: 1.8rem;
-  }
-
-  .nav-menu {
-    display: flex;
-    grid-gap: 10px;
-    list-style: none;
-    text-align: center;
-    width: 60vw;
-    justify-content: flex-end;
-    margin-right: 2rem;
-  }
-
-  .nav-item {
-    height: 80px;
-  }
-
-  .nav-links {
-    color: #fff;
-    display: flex;
-    align-items: center;
-    text-decoration: none;
-    padding: 0.5rem 1rem;
-    height: 100%;
-  }
-
-  .nav-links:hover {
-    border-bottom: 4px solid #fff;
-    transition: all 0.2s ease-out;
-  }
-
-  .fa-bars {
-    color: #fff;
-  }
-
-  .nav-links-mobile {
-    display: none;
-  }
-
-  .menu-icon {
-    display: none;
-  }
-
-.unit-toggle {
-  margin-right: 10px;
-  text-transform: uppercase;
-  font-size: 1rem;
+  position: sticky; top: 0; z-index: 900;
+  background: var(--nav-bg); backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border);
 }
+.navbar__inner {
+  width: min(100% - 2 * var(--s-4), var(--page-w)); margin-inline: auto;
+  min-height: var(--nav-h); display: flex; align-items: center; gap: var(--s-5);
+}
+.navbar__logo { text-decoration: none; color: var(--text); display: inline-flex; margin-right: auto; }
+.logo { display: inline-flex; align-items: center; gap: var(--s-2); }
+.logo__word { font-family: var(--font-display); font-weight: 800; font-size: 1.65rem; letter-spacing: -0.04em; line-height: 1; }
+.navbar__menu { display: flex; align-items: center; gap: var(--s-1); }
+.navbar__link {
+  padding: 8px var(--s-3); border-radius: var(--r-pill); color: var(--text-muted);
+  font-weight: 700; font-size: var(--text-sm); text-decoration: none;
+}
+.navbar__link:hover { color: var(--text); background: var(--surface-2); }
+.navbar__link.active { color: var(--accent); background: var(--accent-soft); }
+.navbar__actions { display: flex; align-items: center; gap: var(--s-2); }
+.unit-toggle { text-transform: none; min-width: 44px; }

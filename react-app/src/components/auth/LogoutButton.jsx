@@ -2,24 +2,17 @@ import React from 'react';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router';
 import { logout } from '../../store/session';
-import './Buttons.css'
 
-const STYLES = ['btn--primary', 'btn--outline'];
-const SIZES = ['btn--medium', 'btn--large'];
-
-const LogoutButton = ({ type, buttonStyle, buttonSize }) => {
+const LogoutButton = () => {
   const dispatch = useDispatch()
   const navigate = useNavigate();
-  const checkButtonStyle = STYLES.includes(buttonStyle) ? buttonStyle : STYLES[0];
-  const checkButtonSize = SIZES.includes(buttonSize) ? buttonSize : SIZES[0];
 
-  const onLogout = async (e) => {
+  const onLogout = async () => {
     await dispatch(logout());
     navigate('/')
   };
 
-  return <button onClick={onLogout} type={type}
-    className={`btn ${checkButtonStyle} ${checkButtonSize}`}>Logout</button>;
+  return <button onClick={onLogout} type='button' className='btn btn--ghost btn--sm'>Log out</button>;
 };
 
 export default LogoutButton;

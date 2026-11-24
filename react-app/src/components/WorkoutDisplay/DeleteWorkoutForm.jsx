@@ -2,31 +2,22 @@ import React from 'react';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router';
 import { deleteWorkout } from '../../store/workouts';
-import './WorkoutDisplay.css'
+import ConfirmForm from '../ui/ConfirmForm';
 
 function DeleteWorkoutForm({workoutId, onClose}) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const destroyWorkout = async (e) => {
-    e.preventDefault();
-    const data = await dispatch(deleteWorkout(workoutId)).then(() => {
-      navigate('/activity')
-    })
-    if (!data) {
-      navigate('/activity');
-      onClose();
-    }
+  const destroyWorkout = async () => {
+    await dispatch(deleteWorkout(workoutId));
+    onClose();
+    navigate('/activity');
   }
 
   return (
-    <div className='dlt-workout-container'>
-      <strong className='dlt-workout-label'>
-        Are you sure you want to delete?
-      </strong>
-      <button className='dlt-workout-btn'
-      onClick={destroyWorkout}>DELETE</button>
-    </div>
+    <ConfirmForm title='Delete this workout?' danger confirmLabel='Delete workout'
+      message='The workout and its comments will be removed for good.'
+      onConfirm={destroyWorkout} onClose={onClose} />
   )
 }
 

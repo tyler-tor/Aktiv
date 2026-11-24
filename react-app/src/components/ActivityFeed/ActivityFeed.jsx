@@ -1,212 +1,139 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
+import { Link } from 'react-router';
+import { FiCompass } from 'react-icons/fi';
 import { getFeed, getMoreFeed } from '../../store/friendsActivity';
-import { NavLink } from 'react-router';
+import { formatMonthYear } from '../../utils/format';
+import Avatar from '../ui/Avatar';
+import ActivityCard from '../ui/ActivityCard';
+import usePageTitle from '../../hooks/usePageTitle';
 import './ActivityFeed.css';
-import RouteSketch from '../RouteSketch/RouteSketch';
-import { formatDate, formatMonthYear, formatDuration } from '../../utils/format';
-import { useUnits } from '../../context/Units';
+
+function FeedSkeleton() {
+    return (
+        <div className='feed__skeleton' role='status' aria-live='polite'>
+            <span className='sr-only'>Loading activity</span>
+            {[0, 1].map((i) => (
+                <div className='skeleton feed__skeleton-card' key={i} aria-hidden='true' />
+            ))}
+        </div>
+    );
+}
 
 function ActivityFeed() {
     const dispatch = useDispatch();
-    const { distance } = useUnits();
     const { items, nextCursor, scope, loadingMore } = useSelector(state => state.friendsActivity)
-    const following = scope === 'friends' ? 'Following' : 'All Activity'
     const currUser = useSelector(state => state.session.user)
+    const [loading, setLoading] = useState(true);
+    const [failed, setFailed] = useState(false);
+    usePageTitle('Activity');
 
-    // First page of the feed (friends only until the user picks "All Activity").
+    const load = async (nextScope) => {
+        setLoading(true);
+        setFailed(false);
+        try {
+            await dispatch(getFeed(nextScope));
+        } catch {
+            setFailed(true);
+        }
+        setLoading(false);
+    };
+
+    // First page of the feed (friends only until the user picks "Everyone").
     useEffect(() => {
-        dispatch(getFeed('friends'))
+        load('friends');
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [dispatch])
 
-    if (!items) {
-        return null;
-    }
+    if (!currUser) return null;
+    const list = items || [];
 
-    return currUser && (
-        <div className='activity-feed-container'>
-            <div className='curruser-container'>
-                <div className='propic-wrapper'>
-                    <img loading='lazy' decoding='async' className='propic' src={currUser.profilePicture} alt='user-pic' />
+    return (
+        <div className='page feed'>
+            <aside className='feed__side' aria-label='Your profile'>
+                <section className='card feed__me'>
+                    <Avatar user={currUser} size='lg' />
+                    <h2 className='feed__me-name'><Link to={`/users/${currUser.id}`}>{currUser.firstName} {currUser.lastName}</Link></h2>
+                    <p className='feed__me-user'>@{currUser.username}</p>
+                    <dl className='feed__me-stats'>
+                        <div><dt>Routes</dt><dd>{currUser.routeCount}</dd></div>
+                        <div><dt>Workouts</dt><dd>{currUser.workoutCount}</dd></div>
+                        <div><dt>Friends</dt><dd>{currUser.friends.length}</dd></div>
+                    </dl>
+                    <p className='feed__me-since'>Member since {formatMonthYear(currUser.createdAt)}</p>
+                </section>
+                <section className='card feed__people' aria-labelledby='friends-h'>
+                    <h2 id='friends-h' className='feed__side-title'>Friends</h2>
+                    {currUser.friends.length === 0
+                        ? <p className='feed__side-empty'>No friends yet. Find people below.</p>
+                        : <ul className='feed__people-list'>
+                            {currUser.friends.map(friend => (
+                                <li key={friend.userId}>
+                                    <Link to={`/users/${friend.userId}`}><Avatar user={friend} size='sm' />{friend.username}</Link>
+                                </li>
+                            ))}
+                        </ul>}
+                </section>
+            </aside>
+
+            <section className='feed__main' aria-labelledby='feed-h'>
+                <div className='feed__bar'>
+                    <h1 id='feed-h' className='feed__title'>Activity</h1>
+                    <div className='segmented' role='group' aria-label='Whose activity to show'>
+                        <button type='button' aria-pressed={scope === 'friends'} onClick={() => load('friends')}>Friends</button>
+                        <button type='button' aria-pressed={scope === 'all'} onClick={() => load('all')}>Everyone</button>
+                    </div>
                 </div>
-                <div className='curruser-info'>
-                    <ul className='cui-list'>
-                        <li className='userinfo-item'>
-                            <NavLink className='cui-fullname'
-                                to={`/users/${currUser.id}`}>
-                                {currUser.firstName}
-                                {' '}
-                                {currUser.lastName}
-                            </NavLink>
-                        </li>
-                        <li className='userinfo-item'>
-                            <p className='cui-username'>
-                                {currUser.username}
-                            </p>
-                        </li>
-                        <li className='userinfo-item'>
-                            <strong>
-                                Member since:
-                            </strong>
-                            {formatMonthYear(currUser.createdAt)}
-                        </li>
-                        <li className='userinfo-item'>
-                            Activity: {currUser.routeCount + currUser.workoutCount}
-                        </li>
-                        <li className='userinfo-item'>
-                            {currUser.friends.map(friend => {
-                                return (
-                                    <div className='friend-list'
-                                    key={friend.userId}>
-                                        <img loading='lazy' decoding='async' className='friend-propic'
-                                            src={friend.profilePicture}
-                                            alt='friend-pic' />
-                                        <NavLink
-                                            to={`/users/${friend.userId}`}
-                                            className='friend-link'>
-                                            {friend.username}
-                                        </NavLink>
-                                    </div>
-                                )
-                            })}
-                        </li>
-                    </ul>
-                </div>
-            </div>
-            <div className='activity-container'>
-                <div className='activity-select-container'>
-                    <select
-                        name='following'
-                        value={following}
-                        onChange={(e) => dispatch(getFeed(e.target.value === 'Following' ? 'friends' : 'all'))}
-                        className='select-input'
-                    >
-                        <option>Following</option>
-                        <option>All Activity</option>
-                    </select>
-                </div>
-                {items.map((activity) => {
-                    // Only routes (they have a startingPoint) get a map image;
-                    // route and workout ids can overlap.
-                    return (
-                        <div className='af-posts-container'
-                            key={`${activity.kind}-${activity.id}`}>
-                            {activity.kind === 'route' ? (
-                                <div className='post-info-container'>
-                                    <a className='img-container'
-                                        href={`/routes/${activity.id}`}>
-                                        <RouteSketch polyline={activity.polyline} start={activity.startingPoint}
-                                            end={activity.endingPoint} title={activity.title} />
-                                    </a>
-                                    <div className='post-info'>
-                                        <a className='act-title'
-                                            href={`/routes/${activity.id}`}>
-                                            {activity.title}
-                                        </a>
-                                        <p className='act-description'>
-                                            {activity.description}
-                                        </p>
-                                        <div className='act-info'>
-                                            <p className='act-distance'>
-                                                {distance(activity.distanceM)}
-                                            </p>
-                                            <p className='act-travel'>
-                                                {activity.travelMode}
-                                            </p>
-                                        </div>
-                                        <p className='act-comm'>
-                                            Comments: {activity.commentCount}
-                                        </p>
-                                    </div>
-                                    <div className='post-owner-info'>
-                                        <a className='owner-propic-wrapper'
-                                            href={`/users/${activity.userId}`}>
-                                            <img loading='lazy' decoding='async' src={activity.ownerInfo.profilePicture} alt='owner'
-                                                className='owner-pro-pic'
-                                            />
-                                            <div className='oi-text'>
-                                                <p className='oi-username'>{activity.ownerInfo.username}</p>
-                                                <p>
-                                                    {formatDate(activity.createdAt)}
-                                                </p>
-                                            </div>
-                                        </a>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className='post-info-container'>
-                                    <a className='img-container'
-                                        href={`/workouts/${activity.id}`}>
-                                        <img loading='lazy' decoding='async' src={activity.imageUrl} alt='workout'
-                                            className='act-workout-pic'
-                                        />
-                                    </a>
-                                    <div className='post-info'>
-                                        <a className='act-title'>
-                                            {activity.title}
-                                        </a>
-                                        <p className='act-description'>
-                                            {activity.description}
-                                        </p>
-                                        <div className='act-info'>
-                                            <p className='act-distance'>
-                                                {distance(activity.distanceM)}
-                                            </p>
-                                            <p className='act-total-time'>
-                                                {formatDuration(activity.durationS)}
-                                            </p>
-                                            <p className='act-type'>
-                                                {activity.type}
-                                            </p>
-                                        </div>
-                                        <p className='act-comm'>
-                                            Comments: {activity.commentCount}
-                                        </p>
-                                    </div>
-                                    <div className='post-owner-info'>
-                                        <a className='owner-propic-wrapper'
-                                            href={`/users/${activity.userId}`}>
-                                            <img loading='lazy' decoding='async' src={activity.ownerInfo.profilePicture} alt='owner'
-                                                className='owner-pro-pic'
-                                            />
-                                        <div className='oi-text'>
-                                            <p className='oi-username'>{activity.ownerInfo.username}</p>
-                                            <p>
-                                                {formatDate(activity.createdAt)}
-                                            </p>
-                                        </div>
-                                        </a>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )
-                })}
-                {items.length === 0 && (
-                    <p className='act-description'>No activity yet.</p>
+
+                {loading && list.length === 0 && <FeedSkeleton />}
+                {failed && (
+                    <div className='empty-state' role='alert'>
+                        <h2>Could not load activity</h2>
+                        <p>Check your connection and try again.</p>
+                        <button type='button' className='btn btn--primary btn--sm' onClick={() => load(scope || 'friends')}>Try again</button>
+                    </div>
                 )}
+                {!loading && !failed && list.length === 0 && (
+                    <div className='empty-state'>
+                        <FiCompass size={32} aria-hidden='true' />
+                        <h2>{scope === 'friends' ? 'Nothing from your friends yet' : 'No activity yet'}</h2>
+                        <p>{scope === 'friends'
+                            ? 'Add friends to see their routes and workouts here, or look at what everyone is up to.'
+                            : 'Be the first: plan a route or log a workout.'}</p>
+                        <div className='btn-row'>
+                            {scope === 'friends' && <button type='button' className='btn btn--secondary btn--sm' onClick={() => load('all')}>Show everyone</button>}
+                            <Link to='/newRoute' className='btn btn--primary btn--sm'>Plan a route</Link>
+                        </div>
+                    </div>
+                )}
+
+                <div className='feed__list'>
+                    {list.map((activity) => (
+                        <ActivityCard key={`${activity.kind}-${activity.id}`} activity={activity} />
+                    ))}
+                </div>
                 {nextCursor && (
-                    <button className='btn btn--outline btn--medium' disabled={loadingMore}
+                    <button type='button' className='btn btn--secondary feed__more' disabled={loadingMore}
                         onClick={() => dispatch(getMoreFeed())}>
                         {loadingMore ? 'Loading...' : 'Load more'}
                     </button>
                 )}
-            </div>
-            <div className='nonfriend-container'>
-                <h2
-                className='nonfriend-wrapper-title'>Suggested Friends: </h2>
-                {currUser.nonFriends && currUser?.nonFriends.map(non => {
-                    return (
-                        <div className='nonfriend-info-container'
-                            key={non.id}>
-                            <img loading='lazy' decoding='async' src={non.profilePicture} alt='non friend pic'
-                            className='non-friend-pic' />
-                            <NavLink className='non-friend-text'
-                            to={`/users/${non.id}`}>{non.username}</NavLink>
-                        </div>
-                    )
-                })}
-            </div>
+            </section>
+
+            <aside className='feed__side' aria-label='Suggested people'>
+                <section className='card feed__people' aria-labelledby='sugg-h'>
+                    <h2 id='sugg-h' className='feed__side-title'>People you may know</h2>
+                    {(currUser.nonFriends || []).length === 0
+                        ? <p className='feed__side-empty'>You follow everyone here.</p>
+                        : <ul className='feed__people-list'>
+                            {currUser.nonFriends.map(non => (
+                                <li key={non.id}>
+                                    <Link to={`/users/${non.id}`}><Avatar user={non} size='sm' />{non.username}</Link>
+                                </li>
+                            ))}
+                        </ul>}
+                </section>
+            </aside>
         </div>
     )
 }

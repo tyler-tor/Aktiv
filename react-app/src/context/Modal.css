@@ -1,26 +1,15 @@
-#modal {
-    position: fixed;
-    z-index: 20000;
-    top: 0;
-    right: 0;
-    left: 0;
-    bottom: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-
-  #modal-background {
-    position: fixed;
-    top: 0;
-    right: 0;
-    left: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.192);
-  }
-
-  #modal-content {
-    display: flex;
-    justify-content: center;
-    position: absolute;
-  }
+#modal { position: fixed; z-index: 2000; inset: 0; display: grid; place-items: center; padding: var(--s-4); }
+#modal-background { position: fixed; inset: 0; background: var(--overlay); }
+#modal-content {
+  position: relative; width: min(100%, 32rem); max-height: calc(100dvh - 2 * var(--s-4)); overflow: auto;
+  background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: var(--r-xl);
+  box-shadow: var(--shadow-lift); padding: var(--s-6);
+}
+.dialog { display: grid; gap: var(--s-4); }
+.dialog__title { font-size: var(--text-xl); }
+.dialog__text { color: var(--text-muted); }
+.dialog__actions { justify-content: flex-end; }
+@media (max-width: 480px) { #modal-content { padding: var(--s-5) var(--s-4); } }
+.dialog--wide { width: 100%; }
+#modal-content:has(.dialog--wide) { width: min(100%, 40rem); }
+.edit-map__map { width: 100%; height: 240px; border-radius: var(--r-md); display: grid; place-items: center; color: var(--text-muted); }
