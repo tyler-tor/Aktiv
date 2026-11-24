@@ -121,7 +121,7 @@ if not S3_LOCATION.endswith('/'):
 def upload_file_to_s3(file, content_type=None):
     # No ACL: new S3 buckets have ACLs disabled ("bucket owner enforced") and
     # reject uploads that send one. Public read access to uploads/* is granted
-    # by a bucket policy (or CloudFront) instead - see CHANGES.md (A5).
+    # by a bucket policy (or CloudFront) instead.
     try:
         get_s3_client().upload_fileobj(
             file,

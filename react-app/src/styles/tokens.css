@@ -11,7 +11,7 @@
   dark   text #EEEDFF on #17143A 15.2, muted #A9A6D6 on #17143A 7.6,
          accent #8C84FF on #17143A 5.7 and dark ink on accent 6.3,
          outlines #6C67BD on #17143A 3.6.
-  (re-check with a script when you change a colour; see CHANGES.md A34)
+  (re-check with a script when you change a colour)
 */
 :root {
   color-scheme: light dark;

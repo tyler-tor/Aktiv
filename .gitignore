@@ -11,3 +11,9 @@ __pycache__/
 # Local databases (SQLite) are never committed
 *.db
 *.sqlite3
+
+# Private learning notes live in the separate portfolio-notes repo
+CHANGES.md
+MODERNIZATION_PLAN.md
+docs/WALKTHROUGH.md
+docs/MAPBOX.md
