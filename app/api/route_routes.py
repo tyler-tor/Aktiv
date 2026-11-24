@@ -65,7 +65,8 @@ def add_route():
             start_lng=form.data['start_lng'],
             end_lat=form.data['end_lat'],
             end_lng=form.data['end_lng'],
-            distance=form.data['distance'],
+            distance_m=form.data['distance_m'],
+            duration_s=form.data['duration_s'],
             traveling_mode=form.data['traveling_mode']
         )
         db.session.add(route)
@@ -104,7 +105,9 @@ def update_route(id):
         return {'errors': ['You can only edit your own routes']}, 403
     form = CreateRouteForm()
     if form.validate_on_submit():
-        route.set_kwargs(**{field: form.data[field] for field in Route.EDITABLE_FIELDS})
+        # duration_s is optional: leave the stored one alone when it is not sent
+        route.set_kwargs(**{field: form.data[field] for field in Route.EDITABLE_FIELDS
+                            if not (field == 'duration_s' and form.data[field] is None)})
         db.session.commit()
         return route.to_dict()
     return {'errors': validation_errors_to_error_messages(form.errors)}, 400

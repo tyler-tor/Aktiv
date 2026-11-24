@@ -60,9 +60,9 @@ def add_workout():
             title=form.data['title'],
             description=form.data['description'],
             type=form.data['type'],
-            total_time=form.data['total_time'],
+            duration_s=form.data['duration_s'],
             image_url=form.data['image_url'],
-            distance=form.data['distance']
+            distance_m=form.data['distance_m']
         )
         db.session.add(workout)
         db.session.commit()

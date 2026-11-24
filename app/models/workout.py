@@ -12,9 +12,10 @@ class Workout(db.Model):
     title = db.Column(db.String(30), nullable=False)
     description = db.Column(db.String(1000), nullable=False)
     type = db.Column(db.String(50), nullable=False)
-    total_time = db.Column(db.String(100), nullable=False)
+    # Length in metres and moving time in seconds (formatted in the browser).
+    distance_m = db.Column(db.Float(), nullable=False)
+    duration_s = db.Column(db.Integer(), nullable=False)
     image_url = db.Column(db.String(255), nullable=False)
-    distance = db.Column(db.String(500))
     created_at = db.Column(db.DateTime, default=utcnow, server_default=db.func.now(), index=True)
     updated_at = db.Column(
         db.DateTime, default=utcnow, onupdate=utcnow, server_default=db.func.now())
@@ -26,8 +27,8 @@ class Workout(db.Model):
     # Only these columns may be changed through the edit endpoint. Anything else
     # (id, user_id, created_at, csrf_token, ...) is silently ignored so a
     # request can never re-assign a workout to another user.
-    EDITABLE_FIELDS = ('title', 'description', 'type', 'total_time',
-                       'image_url', 'distance')
+    EDITABLE_FIELDS = ('title', 'description', 'type', 'duration_s',
+                       'image_url', 'distance_m')
 
     def set_kwargs(self, **kwargs):
         for key, value in kwargs.items():
@@ -44,8 +45,8 @@ class Workout(db.Model):
             'title': self.title,
             'description': self.description,
             'type': self.type,
-            'totalTime': self.total_time,
-            'distance': self.distance,
+            'durationS': self.duration_s,
+            'distanceM': self.distance_m,
             'imageUrl': self.image_url,
             'createdAt': iso(self.created_at),
             'updatedAt': iso(self.updated_at),

@@ -3,6 +3,7 @@ import { useParams, NavLink } from 'react-router';
 import { useSelector, useDispatch } from 'react-redux';
 import AdjustFriendStatusModal from './AdjustFriendStatus/AdjustFriendStatusModal';
 import { getOneUser } from '../store/users';
+import { useUnits } from '../context/Units';
 import './User.css'
 
 function User() {
@@ -13,6 +14,7 @@ function User() {
   const [status, setStatus] = useState(false)
   const { userId } = useParams();
   const dispatch = useDispatch();
+  const { distance } = useUnits();
 
   useEffect(() => {
     dispatch(getOneUser(userId))
@@ -80,7 +82,7 @@ function User() {
                       <strong>description - </strong> {route.description}
                     </li>
                     <li className='uri-item'>
-                      <strong>Distance - </strong> {route.distance}
+                      <strong>Distance - </strong> {distance(route.distanceM)}
                     </li>
                     {route.travelMode ? (
                       <li className='uri-item'>

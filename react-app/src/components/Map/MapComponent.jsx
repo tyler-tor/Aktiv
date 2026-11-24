@@ -5,6 +5,7 @@ import { NavLink } from "react-router";
 import { useEffect } from "react";
 import { useSelector, useDispatch } from 'react-redux'
 import { getAllRoutes } from "../../store/routes";
+import { useUnits } from "../../context/Units";
 import './MapComponent.css'
 
 const containerStyle = {
@@ -15,6 +16,7 @@ const containerStyle = {
 
 const MapComponent = ({ lat, lng }) => {
     const dispatch = useDispatch()
+    const { distance } = useUnits();
     const routes = Object.values(useSelector(state => state.routes.routes ? state.routes.routes : {}));
     const [selected, setSelected] = useState(null)
     // true once the shared Google Maps script (context/GoogleMaps.jsx) is ready
@@ -67,7 +69,7 @@ const MapComponent = ({ lat, lng }) => {
                                 <NavLink to={`/routes/${selected.route.id}`}
                                 className='iw-title'>{selected.route.title}</NavLink>
                                 <p className="iw-description">{selected.route.description}</p>
-                                <p className="iw-description">{selected.route.distance}</p>
+                                <p className="iw-description">{distance(selected.route.distanceM)}</p>
                             </div>
                         </InfoWindow>
                     ) : null}

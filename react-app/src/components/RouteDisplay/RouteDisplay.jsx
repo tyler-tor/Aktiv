@@ -7,6 +7,8 @@ import { getCurrentRoute, getAllRoutes } from '../../store/routes';
 import { NavLink } from 'react-router';
 import Comments from '../Comments/Comments';
 import MapAdjustment from '../MapAdjustment/MapAdjustment';
+import { useUnits } from '../../context/Units';
+import { formatDuration } from '../../utils/format';
 import './RouteDisplay.css';
 
 const DefaultCenter = {
@@ -23,6 +25,7 @@ function RouteDisplay() {
     const [loaded, setLoaded] = useState(true)
 
     const dispatch = useDispatch()
+    const { distance } = useUnits();
 
     const { isLoaded } = useGoogleMaps();
 
@@ -129,7 +132,7 @@ function RouteDisplay() {
                             <li className='ri-item'>
                                 <strong>Distance: </strong>
                                 <p>
-                                    {route?.distance}
+                                    {distance(route?.distanceM)}{route?.durationS ? ` (about ${formatDuration(route.durationS)})` : ''}
                                 </p>
                             </li>
                             <li className='ri-item'>

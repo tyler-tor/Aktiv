@@ -13,7 +13,8 @@ def seed_routes(users):
         end_lat=40.148609331587394,
         end_lng=-111.4701564221499,
         traveling_mode='BICYCLING',
-        distance='16.2 km')
+        distance_m=16200,
+        duration_s=3240)
     route2 = Route(
         user_id=users[1].id,
         title='Fun Times',
@@ -24,7 +25,8 @@ def seed_routes(users):
         end_lat=41.6543202528191,
         end_lng=-111.07986975759182,
         traveling_mode='BICYCLING',
-        distance='10 km')
+        distance_m=10000,
+        duration_s=1980)
     route3 = Route(
         user_id=users[0].id,
         title='Lets get it',
@@ -35,7 +37,8 @@ def seed_routes(users):
         end_lat=48.58975931934812,
         end_lng=-117.79854839369912,
         traveling_mode='WALKING',
-        distance='15.9 km')
+        distance_m=15900,
+        duration_s=12720)
     route4 = Route(
         user_id=users[3].id,
         title='Cmon now',
@@ -46,7 +49,8 @@ def seed_routes(users):
         end_lat=39.37309543495405,
         end_lng=-105.43200042317571,
         traveling_mode='WALKING',
-        distance='10.4 km')
+        distance_m=10400,
+        duration_s=8340)
     route5 = Route(
         user_id=users[4].id,
         title='Rough one',
@@ -57,7 +61,8 @@ def seed_routes(users):
         end_lat=38.82896973404329,
         end_lng=-106.28637730137376,
         traveling_mode='WALKING',
-        distance='23.4 km')
+        distance_m=23400,
+        duration_s=18720)
     route6 = Route(
         user_id=users[0].id,
         title='Very hilly',
@@ -68,7 +73,8 @@ def seed_routes(users):
         end_lat=33.89180954826349,
         end_lng=-92.97421421040694,
         traveling_mode='WALKING',
-        distance='16 km')
+        distance_m=16000,
+        duration_s=12780)
     route7 = Route(
         user_id=users[1].id,
         title='Good Weather',
@@ -79,7 +85,8 @@ def seed_routes(users):
         end_lat=37.074917309117666,
         end_lng=-84.23875418988248,
         traveling_mode='WALKING',
-        distance='16.6 km')
+        distance_m=16600,
+        duration_s=13260)
     route8 = Route(
         user_id=users[2].id,
         title='Cooooooold',
@@ -90,7 +97,8 @@ def seed_routes(users):
         end_lat=47.11612110043876,
         end_lng=-110.58582966733276,
         traveling_mode='WALKING',
-        distance='20.9 km')
+        distance_m=20900,
+        duration_s=16740)
     route9 = Route(
         user_id=users[3].id,
         title='Nice Views',
@@ -101,7 +109,8 @@ def seed_routes(users):
         end_lat=44.256034851125015,
         end_lng=-71.8728996763168,
         traveling_mode='WALKING',
-        distance='16.6 km')
+        distance_m=16600,
+        duration_s=13260)
     route10 = Route(
         user_id=users[4].id,
         title='Wildlife everywhere',
@@ -112,7 +121,8 @@ def seed_routes(users):
         end_lat=35.91020357101724,
         end_lng=-77.6077629575668,
         traveling_mode='WALKING',
-        distance='28.8')
+        distance_m=28800,
+        duration_s=23040)
     route11 = Route(
         user_id=users[0].id,
         title='Lake hike',
@@ -123,7 +133,8 @@ def seed_routes(users):
         end_lat=48.023771406912275,
         end_lng=-98.78360643073135,
         traveling_mode='WALKING',
-        distance='26.6 km')
+        distance_m=26600,
+        duration_s=21300)
     route12 = Route(
         user_id=users[1].id,
         title='Group hike',
@@ -134,7 +145,8 @@ def seed_routes(users):
         end_lat=41.29904412200889,
         end_lng=-121.98394068112788,
         traveling_mode='WALKING',
-        distance='12.4 km')
+        distance_m=12400,
+        duration_s=9900)
     route13 = Route(
         user_id=users[2].id,
         title='Breaking out the MTB',
@@ -144,8 +156,9 @@ def seed_routes(users):
         start_lng=-110.63271082005355,
         end_lat=34.27149572593679,
         end_lng=-110.56679285130355,
-        traveling_mode='BIKING',
-        distance='23.7 km')
+        traveling_mode='BICYCLING',
+        distance_m=23700,
+        duration_s=4740)
     route14 = Route(
         user_id=users[3].id,
         title='Long road bike',
@@ -155,8 +168,9 @@ def seed_routes(users):
         start_lng=-97.44911707005355,
         end_lat=32.547486174893194,
         end_lng=-96.94374597630355,
-        traveling_mode='BIKING',
-        distance='63 km')
+        traveling_mode='BICYCLING',
+        distance_m=63000,
+        duration_s=12600)
     route15 = Route(
         user_id=users[4].id,
         title='Jump day',
@@ -166,8 +180,9 @@ def seed_routes(users):
         start_lng=-90.66443115679557,
         end_lat=38.39205816876799,
         end_lng=-90.57654053179557,
-        traveling_mode='BIKING',
-        distance='26.6 km')
+        traveling_mode='BICYCLING',
+        distance_m=26600,
+        duration_s=5340)
     route16 = Route(
         user_id=users[0].id,
         title='Nice downhill action',
@@ -177,8 +192,9 @@ def seed_routes(users):
         start_lng=-112.18669480259999,
         end_lat=42.64108001647478,
         end_lng=-112.03288620884999,
-        traveling_mode='BIKING',
-        distance='27.1')
+        traveling_mode='BICYCLING',
+        distance_m=27100,
+        duration_s=5400)
     route17 = Route(
         user_id=users[1].id,
         title='Family ride',
@@ -188,8 +204,9 @@ def seed_routes(users):
         start_lng=-79.1337817934853,
         end_lat=41.730038252964526,
         end_lng=-78.8261646059853,
-        traveling_mode='BIKING',
-        distance='42.1 km')
+        traveling_mode='BICYCLING',
+        distance_m=42100,
+        duration_s=8400)
     route18 = Route(
         user_id=users[2].id,
         title='Beach ride',
@@ -199,8 +216,9 @@ def seed_routes(users):
         start_lng=-85.44529119074306,
         end_lat=29.99474769925928,
         end_lng=-85.37937322199306,
-        traveling_mode='BIKING',
-        distance='42.5 km')
+        traveling_mode='BICYCLING',
+        distance_m=42500,
+        duration_s=8520)
     route19 = Route(
         user_id=users[3].id,
         title='Trail riding',
@@ -210,8 +228,9 @@ def seed_routes(users):
         start_lng=-98.69740970199531,
         end_lat=41.787255980931036,
         end_lng=-98.45571048324531,
-        traveling_mode='BIKING',
-        distance='30.1 km')
+        traveling_mode='BICYCLING',
+        distance_m=30100,
+        duration_s=6000)
     route20 = Route(
         user_id=users[4].id,
         title='Lunch ride',
@@ -221,8 +240,9 @@ def seed_routes(users):
         start_lng=-94.47865970199531,
         end_lat=47.930670036336366,
         end_lng=-94.32485110824531,
-        traveling_mode='BIKING',
-        distance='13.1 km')
+        traveling_mode='BICYCLING',
+        distance_m=13100,
+        duration_s=2640)
 
     routes = [route1, route2, route3, route4, route5, route6, route7, route8,
               route9, route10, route11, route12, route13, route14, route15,

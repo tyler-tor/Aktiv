@@ -5,6 +5,8 @@ import { getCurrentWorkout, getAllWorkouts } from '../../store/workouts';
 import Comments from '../Comments/Comments';
 import EditWorkoutModal from './EditWorkoutModal';
 import DeleteWorkoutModal from './DeleteWorkoutModal';
+import { useUnits } from '../../context/Units';
+import { formatDuration } from '../../utils/format';
 import './WorkoutDisplay.css';
 
 function WorkoutDisplay() {
@@ -13,6 +15,7 @@ function WorkoutDisplay() {
     const workout = useSelector(state => state.workouts.currentWorkout);
     const currUser = useSelector(state => state.session.user);
     const [loaded, setLoaded] = useState(false);
+    const { distance, pace } = useUnits();
 
     useEffect(() => {
         (async () => {
@@ -49,7 +52,7 @@ function WorkoutDisplay() {
                     <li className='wi-item'>
                         <strong className='wi-item-label'>Distance: </strong>
                         <p>
-                            {workout?.distance}
+                            {distance(workout?.distanceM)}
                         </p>
                     </li>
                     <li className='wi-item'>
@@ -61,7 +64,7 @@ function WorkoutDisplay() {
                     <li className='wi-item'>
                         <strong className='wi-item-label'>Total Time: </strong>
                         <p>
-                            {workout?.totalTime}
+                            {formatDuration(workout?.durationS)}{' '}({pace(workout?.distanceM, workout?.durationS)})
                         </p>
                     </li>
                 </ul>

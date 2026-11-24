@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { NavLink } from 'react-router';
 import LogoutButton from './auth/LogoutButton';
+import { useUnits } from '../context/Units';
 import './NavBar.css'
 
 const NavBar = () => {
@@ -10,6 +11,7 @@ const NavBar = () => {
   const [click, setClick] = useState(false);
   const [button, setButton] = useState(true);
   const user = useSelector((state) => state.session.user)
+  const { unit, toggleUnit } = useUnits();
 
   const handleClick = () => setClick(!click);
   const closeMobileMenu = () => setClick(false);
@@ -86,6 +88,10 @@ const NavBar = () => {
                   </NavLink>
                 </li>
               </ul>
+              <button type='button' className='btn btn--outline btn--medium unit-toggle' onClick={toggleUnit}
+                aria-label={`Distances are shown in ${unit === 'km' ? 'kilometres' : 'miles'}. Switch to ${unit === 'km' ? 'miles' : 'kilometres'}`}>
+                {unit}
+              </button>
               {button && <LogoutButton buttonStyle='btn--outline' />}
             </>
           )}

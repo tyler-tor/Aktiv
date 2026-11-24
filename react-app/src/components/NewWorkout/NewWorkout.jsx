@@ -3,6 +3,8 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router';
 import ImageUploadComponent from '../ImageUploadComponenet';
 import { addWorkout } from '../../store/workouts';
+import { useUnits } from '../../context/Units';
+import { unitToMeters } from '../../utils/format';
 import './NewWorkout.css'
 
 function NewWorkout() {
@@ -15,7 +17,9 @@ function NewWorkout() {
     const [description, setDescription] = useState('');
     const [type, setType] = useState('');
     const [distance, setDistance] = useState('');
-    const [distanceMeasurement, setDistanceMeasurement] = useState('');
+    const { unit } = useUnits();
+    // distance unit select: 'miles' / 'kilometers' (starts at the saved km/mi preference)
+    const [distanceMeasurement, setDistanceMeasurement] = useState(unit === 'mi' ? 'miles' : 'kilometers');
     const [hour, setHour] = useState('');
     const [minute, setMinute] = useState('');
     const [url, setUrl] = useState('');
@@ -31,8 +35,8 @@ function NewWorkout() {
                 title: title,
                 description: description,
                 type: type,
-                total_time: `${hour} hr ${minute} min`,
-                distance: `${distance} ${distanceMeasurement}`,
+                duration_s: Math.round(Number(hour || 0) * 3600 + Number(minute || 0) * 60),
+                distance_m: unitToMeters(distance, distanceMeasurement === 'miles' ? 'mi' : 'km'),
                 image_url: url
             }
 

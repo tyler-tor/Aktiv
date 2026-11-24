@@ -25,7 +25,9 @@ function NewRoute() {
   const [description, setDescription] = useState('')
   const [url, setUrl] = useState('');
   const [travelingMode, setTravelingMode] = useState('')
+  // from Google's Distance Matrix: metres and seconds (numbers, not text)
   const [distance, setDistance] = useState(null)
+  const [duration, setDuration] = useState(null)
 
   const { isLoaded } = useGoogleMaps();
 
@@ -52,7 +54,8 @@ function NewRoute() {
           end_lat: parseFloat(end.lat),
           end_lng: parseFloat(end.lng),
           traveling_mode: travelingMode,
-          distance: distance,
+          distance_m: distance,
+          duration_s: duration,
           image_url: url
         }
 
@@ -119,7 +122,13 @@ function NewRoute() {
                       origins: [{ lat:start.lat, lng: start.lng }],
                       travelMode: travelingMode,
                     }}
-                    callback={(response) => { setDistance(response.rows[0].elements[0].distance.text) }}
+                    callback={(response) => {
+                      const element = response?.rows?.[0]?.elements?.[0]
+                      if (element && element.status === 'OK') {
+                        setDistance(element.distance.value)
+                        setDuration(element.duration.value)
+                      }
+                    }}
                   />)}
                   <Marker
                     position={start}

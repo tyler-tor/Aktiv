@@ -20,7 +20,10 @@ class Route(db.Model):
     optimize_waypoints = db.Column(db.Boolean(), default=True)
     stopover = db.Column(db.Boolean(), default=False)
     traveling_mode = db.Column(db.String(50), nullable=False)
-    distance = db.Column(db.String(500))
+    # Length in metres and expected time in seconds (the browser formats them
+    # as km/mi and h:mm). duration_s is filled from Google Directions (A28).
+    distance_m = db.Column(db.Float(), nullable=False)
+    duration_s = db.Column(db.Integer())
     created_at = db.Column(db.DateTime, default=utcnow, server_default=db.func.now(), index=True)
     updated_at = db.Column(
         db.DateTime, default=utcnow, onupdate=utcnow, server_default=db.func.now())
@@ -35,8 +38,8 @@ class Route(db.Model):
     # (id, user_id, created_at, csrf_token, ...) is silently ignored so a
     # request can never re-assign a route to another user.
     EDITABLE_FIELDS = ('title', 'description', 'image_url', 'start_lat',
-                       'start_lng', 'end_lat', 'end_lng', 'distance',
-                       'traveling_mode')
+                       'start_lng', 'end_lat', 'end_lng', 'distance_m',
+                       'duration_s', 'traveling_mode')
 
     def set_kwargs(self, **kwargs):
         for key, value in kwargs.items():
@@ -59,7 +62,8 @@ class Route(db.Model):
             'startingPoint': {'lat': self.start_lat, 'lng': self.start_lng},
             'endingPoint': {'lat': self.end_lat, 'lng': self.end_lng},
             'travelMode': self.traveling_mode,
-            'distance': self.distance,
+            'distanceM': self.distance_m,
+            'durationS': self.duration_s,
             'createdAt': iso(self.created_at),
             'updatedAt': iso(self.updated_at),
             'commentCount': self.comment_count,

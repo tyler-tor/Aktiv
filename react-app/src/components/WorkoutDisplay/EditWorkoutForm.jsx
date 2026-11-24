@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { updateWorkout } from '../../store/workouts'
+import { useUnits } from '../../context/Units'
+import { metersToUnit, unitToMeters } from '../../utils/format'
 
 function EditWorkoutForm({ workout, onClose }) {
   const currUser = useSelector(state => state.session.user);
@@ -9,10 +11,11 @@ function EditWorkoutForm({ workout, onClose }) {
   const [title, setTitle] = useState(workout?.title)
   const [type, setType] = useState(workout?.type)
   const [description, setDescription] = useState(workout?.description);
-  const [distance, setDistance] = useState(workout?.distance.split(' ')[0]);
-  const [distanceMeasurement, setDistanceMeasurement] = useState('');
-  const [hour, setHour] = useState('');
-  const [minute, setMinute] = useState('');
+  const { unit } = useUnits();
+  const [distanceMeasurement, setDistanceMeasurement] = useState(unit === 'mi' ? 'miles' : 'kilometers');
+  const [distance, setDistance] = useState(metersToUnit(workout.distanceM, unit));
+  const [hour, setHour] = useState(Math.floor(workout.durationS / 3600));
+  const [minute, setMinute] = useState(Math.round((workout.durationS % 3600) / 60));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,8 +26,8 @@ function EditWorkoutForm({ workout, onClose }) {
       title: title,
       type: type,
       description: description,
-      distance: `${distance} ${distanceMeasurement}`,
-      total_time: `${hour} hr ${minute} min`,
+      distance_m: unitToMeters(distance, distanceMeasurement === 'miles' ? 'mi' : 'km'),
+      duration_s: Math.round(Number(hour || 0) * 3600 + Number(minute || 0) * 60),
       image_url: workout.imageUrl
     }
 
@@ -36,15 +39,12 @@ function EditWorkoutForm({ workout, onClose }) {
     }
   }
 
-  useEffect(() => {
-    const timeSplit = workout.totalTime.split(' ')
-    const distanceMeasure = workout.distance.split(' ')[1]
-    setHour(timeSplit[0]);
-    setMinute(timeSplit[2])
-
-    if (distanceMeasure === 'miles') setDistanceMeasurement(distanceMeasure);
-    if (distanceMeasure === 'kilometers') setDistanceMeasurement(distanceMeasure)
-  }, []);
+  // Changing the unit select converts the number in the box, so the distance stays the same.
+  const changeMeasurement = (next) => {
+    const value = unitToMeters(distance, distanceMeasurement === 'miles' ? 'mi' : 'km');
+    setDistanceMeasurement(next);
+    setDistance(metersToUnit(value, next === 'miles' ? 'mi' : 'km'));
+  };
 
   return (
     <div className='edit-workout-form-wrapper'>
@@ -132,7 +132,7 @@ function EditWorkoutForm({ workout, onClose }) {
               value={distanceMeasurement}
               className='ewf-input'
               required
-              onChange={(e) => setDistanceMeasurement(e.target.value)}
+              onChange={(e) => changeMeasurement(e.target.value)}
             >
               <option value='' disabled>
                 Select a distance measurement...

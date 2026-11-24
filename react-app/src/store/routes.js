@@ -88,7 +88,8 @@ export const updateRoute = (route) => async (dispatch) => {
             end_lat: route.end_lat,
             end_lng: route.end_lng,
             traveling_mode: route.traveling_mode,
-            distance: route.distance,
+            distance_m: route.distance_m,
+            duration_s: route.duration_s,
             image_url: route.image_url
         })
     });

@@ -15,7 +15,9 @@ function EditMapForm({ route, onClose, setResponse, setLoaded }) {
     const [title, setTitle] = useState(route?.title)
     const [description, setDescription] = useState(route?.description)
     const [travelingMode, setTravelingMode] = useState(route?.travelMode)
-    const [distance, setDistance] = useState(route?.distance)
+    // metres / seconds, recalculated by Google's Distance Matrix when points move
+    const [distance, setDistance] = useState(route?.distanceM)
+    const [duration, setDuration] = useState(route?.durationS)
 
     const { isLoaded } = useGoogleMaps();
 
@@ -37,7 +39,8 @@ function EditMapForm({ route, onClose, setResponse, setLoaded }) {
             end_lat: end.lat,
             end_lng: end.lng,
             traveling_mode: travelingMode,
-            distance: distance,
+            distance_m: distance,
+            duration_s: duration,
             image_url: route.imageUrl
         }
         const res = await dispatch(updateRoute(payload))
@@ -82,7 +85,13 @@ function EditMapForm({ route, onClose, setResponse, setLoaded }) {
                                             origins: [{...start}],
                                             travelMode: travelingMode,
                                         }}
-                                        callback={(response) => { setDistance(response.rows[0].elements[0].distance.text) }}
+                                        callback={(response) => {
+                                            const element = response?.rows?.[0]?.elements?.[0]
+                                            if (element && element.status === 'OK') {
+                                                setDistance(element.distance.value)
+                                                setDuration(element.duration.value)
+                                            }
+                                        }}
                                     />
                                     {route && (
                                         <>

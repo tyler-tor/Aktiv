@@ -4,10 +4,12 @@ import { getFeed, getMoreFeed } from '../../store/friendsActivity';
 import { NavLink } from 'react-router';
 import './ActivityFeed.css';
 import { GOOGLE_MAPS_API_KEY } from '../../config';
-import { formatDate, formatMonthYear } from '../../utils/format';
+import { formatDate, formatMonthYear, formatDuration } from '../../utils/format';
+import { useUnits } from '../../context/Units';
 
 function ActivityFeed() {
     const dispatch = useDispatch();
+    const { distance } = useUnits();
     // Static map image URL per route id, built from the Directions response.
     // (This used to be written onto the route objects themselves, i.e. it
     // mutated Redux state; Redux Toolkit freezes state, so it lives here now.)
@@ -134,7 +136,7 @@ function ActivityFeed() {
                                         </p>
                                         <div className='act-info'>
                                             <p className='act-distance'>
-                                                {activity.distance}
+                                                {distance(activity.distanceM)}
                                             </p>
                                             <p className='act-travel'>
                                                 {activity.travelMode}
@@ -176,10 +178,10 @@ function ActivityFeed() {
                                         </p>
                                         <div className='act-info'>
                                             <p className='act-distance'>
-                                                {activity.distance}
+                                                {distance(activity.distanceM)}
                                             </p>
                                             <p className='act-total-time'>
-                                                {activity.totalTime}
+                                                {formatDuration(activity.durationS)}
                                             </p>
                                             <p className='act-type'>
                                                 {activity.type}
