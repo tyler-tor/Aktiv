@@ -700,3 +700,11 @@ at the end of this file.
   - In `npm run dev` each page is its own module anyway; the savings are visible in the production build.
   - Existing images already in S3 are not shrunk (only new uploads).
   - The seeded demo images still point at the old third-party bucket until A36.
+
+## Y4 — Logout is a POST (CSRF-protected)
+- **Problem:** `GET /api/auth/logout` changed state. Any web page can make your browser send a GET (`<img src="https://aktiv.example/api/auth/logout">`), so another site could log you out at will ("logout CSRF"), and GET requests are also prefetched, cached and logged by proxies. Every other write in the app already needed the CSRF token (A6).
+- **What changed:** the route accepts **POST only** and, like every POST/PUT/DELETE, requires the `X-CSRFToken` header (global CSRF protection from A6), so a forged request from another site gets 400. The frontend `logout` thunk now sends `method: 'POST'` through `csrfFetch`, which adds the header.
+- **Files:** `app/api/auth_routes.py`, `react-app/src/store/session.js`
+- **How to verify:** click Logout in the app: you land on the login page. In DevTools > Network the request is `POST /api/auth/logout` with an `X-CSRFToken` header. Opening `/api/auth/logout` in the address bar no longer logs you out.
+  Verified with a test-client script (8 checks): GET does not log out; POST without a token and with a wrong token give 400 and the session survives; POST with the token gives 200 and the session is gone; logging out twice is harmless. The jsdom smoke test clicks Logout and lands on the login page.
+- **Things to watch:** anything else that called `GET /api/auth/logout` (bookmarks, scripts) must switch to POST. In production a GET to that URL now falls into the "serve the React app" catch-all and shows the app, which is harmless.

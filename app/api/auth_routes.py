@@ -76,10 +76,11 @@ def login():
     return session_payload(user)
 
 
-@auth_routes.route('/logout')
+@auth_routes.route('/logout', methods=['POST'])
 def logout():
     """
-    Logs a user out
+    Logs a user out. POST (with the CSRF header like every other write): a GET
+    logout can be triggered by any web page with <img src=".../logout">.
     """
     logout_user()
     return {'message': 'User logged out'}

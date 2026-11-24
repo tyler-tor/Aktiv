@@ -66,6 +66,7 @@ export const login = (email, password) => async (dispatch) => {
 
 export const logout = () => async (dispatch) => {
   const response = await csrfFetch('/api/auth/logout', {
+    method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     }
