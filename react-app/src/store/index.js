@@ -3,7 +3,6 @@ import logger from 'redux-logger';
 import session from './session'
 import usersReducer from './users';
 import commentsReducer from './comments';
-import friendsReducer from './friends';
 import workoutReducer from './workouts';
 import routesReducer from './routes';
 import friendsActivityReducer from './friendsActivity';
@@ -17,7 +16,6 @@ const reducer = {
   session,
   users: usersReducer,
   comments: commentsReducer,
-  friends: friendsReducer,
   workouts: workoutReducer,
   routes: routesReducer,
   friendsActivity: friendsActivityReducer

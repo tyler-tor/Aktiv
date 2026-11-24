@@ -1,45 +1,26 @@
-import { createSlice } from '@reduxjs/toolkit';
 import { csrfFetch } from './csrf';
 import { authenticate } from "./session";
 import { getOneUser } from "./users";
 
-const friendsSlice = createSlice({
-    name: 'friends',
-    initialState: {},
-    reducers: {
-        // Replaces the whole map: { [userId]: friend }
-        getFriends(state, action) {
-            const newState = {};
-            action.payload.forEach((user) => {
-                newState[user.id] = user;
-            });
-            return newState;
-        },
-        // NOTE: addFriend() dispatches the friend's *id*, so this stores the id
-        // under the key "undefined" (pre-existing behaviour, kept as-is; the
-        // friends slice is not read anywhere - pages use session.user.friends).
-        addFriendAction(state, action) {
-            state[action.payload.id] = action.payload;
-        },
-        deleteFriendAction(state, action) {
-            delete state[action.payload];
-        },
-    },
-});
+// Friend actions. There is no separate "friends" slice any more: the single
+// source of truth is `state.session.user.friends` (and `users.currentUser` for
+// the profile being viewed), which these thunks refresh after every change.
+// (The old slice stored the added friend under the key "undefined" and nothing
+// ever read it.)
 
-const { getFriends, addFriendAction, deleteFriendAction } = friendsSlice.actions;
-
-export const getAllFriends = (id) => async (dispatch) => {
-    const response = await csrfFetch(`/api/users/${id}/friends`);
-
-    if (response.ok) {
+// Reads the error list out of a failed response.
+const failure = async (response) => {
+    let errors = ['Something went wrong. Please try again.'];
+    try {
         const data = await response.json();
-        dispatch(getFriends(data.friends))
-        return data.friends
-    };
-    return response
-}
+        if (Array.isArray(data.errors)) errors = data.errors;
+    } catch (e) {
+        // not JSON (e.g. an HTML error page): keep the generic message
+    }
+    return { errors };
+};
 
+// Resolves to the API answer on success, or { errors: [...] } on failure.
 export const addFriend = (id) => async (dispatch) => {
     const response = await csrfFetch(`/api/users/${id}/friends`, {
         method: 'POST',
@@ -49,12 +30,11 @@ export const addFriend = (id) => async (dispatch) => {
     });
     if (response.ok) {
         const data = await response.json();
-        dispatch(addFriendAction(data.friend.id));
-        dispatch(authenticate());
-        dispatch(getOneUser(data.friend.id))
+        await dispatch(authenticate());
+        await dispatch(getOneUser(data.friend.id));
         return data
     };
-    return response
+    return failure(response)
 };
 
 export const deleteFriend = (id) => async (dispatch) => {
@@ -63,13 +43,9 @@ export const deleteFriend = (id) => async (dispatch) => {
     });
     if (response.ok) {
         const data = await response.json();
-        dispatch(deleteFriendAction(data.unFriended.id));
-        dispatch(authenticate());
-        dispatch(getOneUser(data.unFriended.id))
+        await dispatch(authenticate());
+        await dispatch(getOneUser(data.unFriended.id));
         return data
     };
-    return response
+    return failure(response)
 };
-
-
-export default friendsSlice.reducer;

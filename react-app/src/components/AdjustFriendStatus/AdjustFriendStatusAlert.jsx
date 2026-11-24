@@ -13,16 +13,16 @@ function AdjustFriendStatusAlert({ userId, status, setStatus, onClose, setLoadin
 
     if (!status) {
       res = await dispatch(addFriend(userId))
-      if (res.error) {
-        setErrors(res)
+      if (res.errors) {
+        setErrors(res.errors)
       } else {
         setStatus(true)
         onClose()
       }
     } else {
       res = await dispatch(deleteFriend(userId))
-      if (res.error) {
-        setErrors(res)
+      if (res.errors) {
+        setErrors(res.errors)
       } else {
         setStatus(false)
         onClose()
