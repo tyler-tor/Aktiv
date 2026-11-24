@@ -1,14 +1,17 @@
-import React, { useEffect, useState } from 'react';
-import { GoogleMap, DirectionsService, DirectionsRenderer } from '@react-google-maps/api';
+import React, { useEffect, useMemo, useState } from 'react';
+import { GoogleMap, Polyline, Marker, DirectionsRenderer } from '@react-google-maps/api';
 import { useGoogleMaps } from '../../context/GoogleMaps';
 import { useParams } from 'react-router';
 import { useSelector, useDispatch } from 'react-redux';
-import { getCurrentRoute, getAllRoutes } from '../../store/routes';
+import { getCurrentRoute } from '../../store/routes';
 import { NavLink } from 'react-router';
 import Comments from '../Comments/Comments';
 import MapAdjustment from '../MapAdjustment/MapAdjustment';
 import { useUnits } from '../../context/Units';
 import { formatDuration } from '../../utils/format';
+import { decodePolyline } from '../../utils/polyline';
+import { useFallbackDirections } from '../../hooks/useDirections';
+import { MAP_COLORS } from '../../theme';
 import './RouteDisplay.css';
 
 const DefaultCenter = {
@@ -16,76 +19,64 @@ const DefaultCenter = {
     lng: -117.420902
 };
 
+const POLYLINE_OPTIONS = { strokeColor: MAP_COLORS.route, strokeWeight: 5, strokeOpacity: 0.95 };
+
 
 function RouteDisplay() {
     const { routeId } = useParams();
     const route = useSelector(state => state.routes.currentRoute)
     const currUser = useSelector(state => state.session.user)
-    const [response, setResponse] = useState(null)
-    const [loaded, setLoaded] = useState(true)
-
+    const [map, setMap] = useState(null)
     const dispatch = useDispatch()
     const { distance } = useUnits();
-
     const { isLoaded } = useGoogleMaps();
 
-    const directionsCallback = (response) => {
-        if (response !== null) {
-            if (response.status === 'OK') {
-                setResponse(response)
-            }
-        }
-    }
-
+    // Load this one route (it used to reload every route again after every
+    // Directions answer, which could loop). Editing the route puts the updated
+    // route into the store, so nothing else needs to refetch.
     useEffect(() => {
-        (async () => {
-            await dispatch(getAllRoutes());
-            await dispatch(getCurrentRoute(routeId)).then(() => setLoaded(true))
-        })()
-    }, [dispatch, response, routeId])
+        dispatch(getCurrentRoute(routeId))
+    }, [dispatch, routeId])
 
+    // The path comes from the server (A28): decode it once per route.
+    const path = useMemo(() => decodePolyline(route?.polyline), [route?.polyline])
 
-    if (!route) {
+    // Only routes saved without a stored path ask Google (once) from the browser.
+    const needsFallback = !!route && path.length < 2
+    const fallback = useFallbackDirections(route?.startingPoint, route?.endingPoint, route?.travelMode, needsFallback)
+
+    // Zoom the map to the route whenever it (or the map) changes.
+    useEffect(() => {
+        if (!map || !route || !window.google) return
+        const bounds = new window.google.maps.LatLngBounds()
+        const points = path.length >= 2 ? path : [route.startingPoint, route.endingPoint]
+        points.forEach(point => bounds.extend(point))
+        map.fitBounds(bounds, 48)
+    }, [map, route, path])
+
+    // (also hides the previously viewed route while the new one is loading)
+    if (!route || String(route.id) !== String(routeId)) {
         return null
     }
-
 
     return route.ownerInfo && (
         <div className='route-info-container'>
             <div className='route-map-info-container'>
-                {loaded && isLoaded ?
+                {isLoaded ?
                     <>
                         <div id='map'>
                             <GoogleMap
                                 zoom={10}
-                                center={DefaultCenter}
+                                center={route.startingPoint || DefaultCenter}
                                 mapContainerClassName='route-map-container'
+                                onLoad={setMap}
+                                onUnmount={() => setMap(null)}
                             >
-                                {(route.endingPoint !== '' && response === null) && (
-                                    <DirectionsService
-                                        options={{
-                                            destination: route.endingPoint,
-                                            origin: route.startingPoint,
-                                            travelMode: route.travelMode
-                                        }}
-                                        callback={directionsCallback}
-
-                                    />
-                                )
-                                }
-                                {response !== null && (
-                                    <>
-                                        <DirectionsRenderer
-                                            panel={document.getElementById("panel")}
-                                            options={{
-                                                directions: response
-                                            }}
-                                        />
-
-                                    </>
-                                )}
+                                {path.length >= 2 && <Polyline path={path} options={POLYLINE_OPTIONS} />}
+                                {fallback && <DirectionsRenderer options={{ directions: fallback, suppressMarkers: true }} />}
+                                <Marker position={route.startingPoint} title='Start' />
+                                <Marker position={route.endingPoint} title='Finish' />
                             </GoogleMap>
-
                         </div>
                     </>
 
@@ -143,7 +134,7 @@ function RouteDisplay() {
                             </li>
                         </ul>
                         {currUser.id === route?.userId &&
-                            <MapAdjustment route={route} setResponse={setResponse} setLoaded={setLoaded} />
+                            <MapAdjustment route={route} />
                         }
                     </div>
                 </div>

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { updateRoute } from '../../store/routes';
-import { GoogleMap, Marker, DistanceMatrixService } from '@react-google-maps/api';
+import { GoogleMap, Marker } from '@react-google-maps/api';
+import { useDistanceMatrix } from '../../hooks/useDirections';
 import { useGoogleMaps } from '../../context/GoogleMaps';
 import './MapAdjustment.css'
 
 
-function EditMapForm({ route, onClose, setResponse, setLoaded }) {
+function EditMapForm({ route, onClose }) {
     const currUser = useSelector(state => state.session.user)
     const dispatch = useDispatch()
     const [start, setStart] = useState({ ...route?.startingPoint })
@@ -15,9 +16,10 @@ function EditMapForm({ route, onClose, setResponse, setLoaded }) {
     const [title, setTitle] = useState(route?.title)
     const [description, setDescription] = useState(route?.description)
     const [travelingMode, setTravelingMode] = useState(route?.travelMode)
-    // metres / seconds, recalculated by Google's Distance Matrix when points move
-    const [distance, setDistance] = useState(route?.distanceM)
-    const [duration, setDuration] = useState(route?.durationS)
+    // metres / seconds; recalculated by Google's Distance Matrix only when the points or mode change
+    const matrix = useDistanceMatrix(start, end, travelingMode)
+    const distance = matrix ? matrix.distanceM : route?.distanceM
+    const duration = matrix ? matrix.durationS : route?.durationS
 
     const { isLoaded } = useGoogleMaps();
 
@@ -47,10 +49,8 @@ function EditMapForm({ route, onClose, setResponse, setLoaded }) {
         if (res) {
             setErrors(res)
         } else {
-            setResponse(null)
             onClose()
         }
-        setLoaded(true)
     }
 
 
@@ -79,20 +79,6 @@ function EditMapForm({ route, onClose, setResponse, setLoaded }) {
                                     center={center}
                                     mapContainerClassName='emf-map-container'
                                 >
-                                    <DistanceMatrixService
-                                        options={{
-                                            destinations: [{...end}],
-                                            origins: [{...start}],
-                                            travelMode: travelingMode,
-                                        }}
-                                        callback={(response) => {
-                                            const element = response?.rows?.[0]?.elements?.[0]
-                                            if (element && element.status === 'OK') {
-                                                setDistance(element.distance.value)
-                                                setDuration(element.duration.value)
-                                            }
-                                        }}
-                                    />
                                     {route && (
                                         <>
                                             <Marker

@@ -3,10 +3,10 @@ import EditMapModal from './EditMapModal'
 import DeleteMapModal from './DeleteMapModal'
 import './MapAdjustment.css'
 
-function MapAdjustment({route, setResponse, setLoaded}) {
+function MapAdjustment({route}) {
     return (
         <div className='ed-btn-container'>
-            <EditMapModal route={route} setResponse={setResponse} setLoaded={setLoaded} />
+            <EditMapModal route={route} />
             <DeleteMapModal routeId={route.id} />
         </div>
     )

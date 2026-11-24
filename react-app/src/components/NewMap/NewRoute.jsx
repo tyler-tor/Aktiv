@@ -3,7 +3,8 @@ import { useSelector, useDispatch } from 'react-redux'
 import { useNavigate } from 'react-router';
 import { addRoute } from '../../store/routes'
 import ImageUploadComponent from '../ImageUploadComponenet';
-import { GoogleMap, Marker, DistanceMatrixService } from '@react-google-maps/api';
+import { GoogleMap, Marker } from '@react-google-maps/api';
+import { useDistanceMatrix } from '../../hooks/useDirections';
 import { useGoogleMaps } from '../../context/GoogleMaps';
 import './NewRoute.css'
 
@@ -25,9 +26,10 @@ function NewRoute() {
   const [description, setDescription] = useState('')
   const [url, setUrl] = useState('');
   const [travelingMode, setTravelingMode] = useState('')
-  // from Google's Distance Matrix: metres and seconds (numbers, not text)
-  const [distance, setDistance] = useState(null)
-  const [duration, setDuration] = useState(null)
+  // Google's Distance Matrix answer (metres and seconds), requested once per change of points/mode
+  const matrix = useDistanceMatrix(start, end, travelingMode)
+  const distance = matrix ? matrix.distanceM : null
+  const duration = matrix ? matrix.durationS : null
 
   const { isLoaded } = useGoogleMaps();
 
@@ -116,20 +118,6 @@ function NewRoute() {
                   mapContainerClassName='nrf-map-container'
                   onClick={(e) => handleMarkerSet(e)}
                 >
-                {start && end && travelingMode && (<DistanceMatrixService
-                    options={{
-                      destinations: [{ lat:end.lat, lng: end.lng }],
-                      origins: [{ lat:start.lat, lng: start.lng }],
-                      travelMode: travelingMode,
-                    }}
-                    callback={(response) => {
-                      const element = response?.rows?.[0]?.elements?.[0]
-                      if (element && element.status === 'OK') {
-                        setDistance(element.distance.value)
-                        setDuration(element.duration.value)
-                      }
-                    }}
-                  />)}
                   <Marker
                     position={start}
                     draggable={true}
