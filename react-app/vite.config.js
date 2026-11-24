@@ -12,7 +12,7 @@ export default defineConfig({
     // forwards every /api request to Flask, so cookies stay same-origin and
     // no CORS is needed (same as CRA's "proxy" setting before).
     proxy: {
-      '/api': 'http://localhost:5000',
+      '/api': 'http://localhost:8000',
     },
   },
   build: {
