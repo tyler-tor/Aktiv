@@ -67,11 +67,14 @@ export const newRouteComment = (comment) => async (dispatch) => {
     if (response.ok) {
         const newComment = await response.json();
         dispatch(routeCommentAction(newComment));
+        return null
     }else if (response.status < 500) {
         const data = await response.json();
         if (data.errors) {
             return data.errors
         }
+    }else {
+        return ['An error occurred. Please try again.']
     }
 };
 
@@ -92,7 +95,7 @@ export const newWorkoutComment = (comment) => async (dispatch) => {
     if (response.ok) {
         const newComment = await response.json();
         dispatch(workoutCommentAction(newComment));
-        return newComment
+        return null
     }else if (response.status < 500) {
         const data = await response.json();
         if (data.errors) {

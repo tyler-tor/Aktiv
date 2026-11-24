@@ -90,7 +90,7 @@ function WorkoutDisplay() {
             </div>
             <div className='comm-box-container'>
                 <div className='comments-container'>
-                    <Comments id={workout.id} />
+                    <Comments id={workout.id} kind='workout' />
                 </div>
             </div>
         </div>

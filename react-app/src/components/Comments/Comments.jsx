@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
-import { getRouteComments } from '../../store/comments'
+import { getRouteComments, getWorkoutComments } from '../../store/comments'
 import EditCommentModal from '../EditComment/EditCommentModal';
 import AddCommentModal from '../AddCommentModal/AddCommentModal';
 
-function Comments({ id }) {
+// Comments under a route (kind='route', the default) or a workout (kind='workout').
+function Comments({ id, kind = 'route' }) {
     const [isLoaded, setIsLoaded] = useState(false);
     const comments = Object.values(useSelector(state => state.comments)).reverse()
     const currUser = useSelector(state => state.session.user)
@@ -12,13 +13,13 @@ function Comments({ id }) {
 
 
     useEffect(() => {
-        dispatch(getRouteComments(id))
+        dispatch(kind === 'workout' ? getWorkoutComments(id) : getRouteComments(id))
         setIsLoaded(true)
-    }, [dispatch, id])
+    }, [dispatch, id, kind])
 
     return (
         <div className='comm-list-container'>
-            <AddCommentModal id={id} />
+            <AddCommentModal id={id} kind={kind} />
             {isLoaded && (
                 <div className='comm-list'>
                     <ul className='comm-ul'>

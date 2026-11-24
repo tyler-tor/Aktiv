@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { useDispatch } from 'react-redux';
-import { newRouteComment } from '../../store/comments';
+import { newRouteComment, newWorkoutComment } from '../../store/comments';
 import './AddCommentForm.css'
 
-function AddCommentForm({ onClose, id }) {
+function AddCommentForm({ onClose, id, kind = 'route' }) {
     const [errors, setErrors] = useState([]);
     const [commentInput, setCommentInput] = useState('');
     const dispatch = useDispatch();
@@ -11,12 +11,11 @@ function AddCommentForm({ onClose, id }) {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        const payload = {
-            body: commentInput,
-            routeId: id
-        }
+        const payload = kind === 'workout'
+            ? { body: commentInput, workoutId: id }
+            : { body: commentInput, routeId: id }
 
-        await dispatch(newRouteComment(payload)).then((res) => {
+        await dispatch(kind === 'workout' ? newWorkoutComment(payload) : newRouteComment(payload)).then((res) => {
             if (res) {
                 setErrors(res)
             }else {

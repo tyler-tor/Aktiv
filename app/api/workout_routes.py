@@ -122,6 +122,24 @@ def delete_workout(id):
     return {'message': 'Success'}
 
 
+# get all comments on a workout
+@workout_routes.route('/<int:id>/comments')
+@login_required
+def get_comments_to_workout(id):
+    """
+    Returns all comments on a workout, oldest first (404 if it does not exist)
+    """
+    workout = db.session.get(Workout, id)
+    if workout is None:
+        return workout_not_found()
+    comments = db.session.scalars(
+        db.select(Comment)
+        .where(Comment.workout_id == workout.id)
+        .options(joinedload(Comment.users))
+        .order_by(Comment.id)).all()
+    return {'comments': [comment.to_dict() for comment in comments]}
+
+
 # add a comment to a specific workout
 @workout_routes.route('/<int:id>/comments', methods=['POST'])
 @login_required
