@@ -8,14 +8,14 @@ class Workout(db.Model):
         __table_args__ = {'schema': SCHEMA}
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey(add_prefix_for_prod("users.id")), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey(add_prefix_for_prod("users.id")), nullable=False, index=True)
     title = db.Column(db.String(30), nullable=False)
     description = db.Column(db.String(1000), nullable=False)
     type = db.Column(db.String(50), nullable=False)
     total_time = db.Column(db.String(100), nullable=False)
     image_url = db.Column(db.String(255), nullable=False)
     distance = db.Column(db.String(500))
-    created_at = db.Column(db.DateTime, default=utcnow, server_default=db.func.now())
+    created_at = db.Column(db.DateTime, default=utcnow, server_default=db.func.now(), index=True)
     updated_at = db.Column(
         db.DateTime, default=utcnow, onupdate=utcnow, server_default=db.func.now())
 

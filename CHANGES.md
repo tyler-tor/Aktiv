@@ -12,6 +12,13 @@ upgrades; then the app factory / Python 3.12, Flask 3, SQLAlchemy 2.0, Vite, Rea
 Redux Toolkit, React Router v7 and the Google Maps library update. See the Batch 2 part
 at the end of this file.
 
+**Batch 3 (performance + UI/UX): A24 - A36 and add-ons Y1 - Y5.** Slimmer API responses,
+fewer queries, indexes, pagination, numeric distance/time, server-side route polylines,
+lazy-loaded pages, then a full visual redesign (own design system, responsive, accessible,
+loading/empty/error states, owned images). Y1 workout comments, Y2 `/routes` + `/users`
+pages, Y3 friends slice, Y4 logout as POST, Y5 AdvancedMarkerElement. See the Batch 3 part
+at the end of this file.
+
 ## Deviations from plan
 
 - **A4 (sign-up picture):** the plan adds `@login_required` to `/api/img/upload`, but the sign-up page uploaded the profile picture *before* the account existed, so that would have broken sign-up pictures. Minimal fix: the sign-up page now uploads the picture right after the account is created and saves it via a new `PUT /api/auth/profile-picture` endpoint (accepts only URLs from your bucket's `uploads/` prefix).
@@ -565,3 +572,13 @@ at the end of this file.
   - Pre-existing bug kept on purpose: `addFriend()` dispatches the friend's id, and the reducer stores it under the key `"undefined"` in `state.friends`. Nothing reads `state.friends` (pages use `session.user.friends`), so it is harmless; a cleanup could remove the `friends` slice or fix the payload.
   - Toolkit's dev checks will now *tell you* (console error) if new code mutates Redux state outside a reducer. That is intended.
   - Action type strings changed (e.g. `workouts/GET_ROUTES` -> `routes/getRoutes`); only visible in DevTools/logger.
+
+## A26 — Database indexes
+- **Problem:** Postgres does not create an index for a foreign key by itself, and SQLite does not either. Every profile page, comment list and feed query filters on `user_id` / `route_id` / `workout_id` or sorts by `created_at`, so each one scanned the whole table, and the cost grows with every row added.
+- **What changed:** The model columns got `index=True` (`routes.user_id`, `routes.created_at`, `workouts.user_id`, `workouts.created_at`, `comments.user_id`, `comments.route_id`, `comments.workout_id`, `follows.followed_id`) and a **new** migration `c4a1f7e2b9d8_add_indexes.py` creates the 8 indexes (`ix_<table>_<column>`, the names SQLAlchemy generates) and drops them again on downgrade. `follows.follower_id` needs no extra index: it is the first column of the composite primary key from A15. The migration honours the production `SCHEMA` like the earlier ones. No existing migration was edited.
+- **Files:** `app/models/{route,workout,comment,user}.py`, `migrations/versions/c4a1f7e2b9d8_add_indexes.py`
+- **How to verify:**
+  1. `flask db upgrade` then `sqlite3 app/dev.db ".indexes routes"` shows `ix_routes_user_id` and `ix_routes_created_at`.
+  2. `flask db downgrade` removes them; `flask db upgrade` brings them back (all three ran clean on SQLite).
+  3. The model/database comparison (`compare_metadata`) reports **0 differences** after the upgrade.
+- **Things to watch:** Nothing changes for users; queries just stay fast as data grows. Not run on real Postgres (same caveat as A15); `CREATE INDEX` on these small tables is instant, but on a big production table it briefly locks writes.

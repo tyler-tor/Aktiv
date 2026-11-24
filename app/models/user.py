@@ -11,7 +11,7 @@ follows = db.Table('follows',
               primary_key=True),
     db.Column('followed_id', db.Integer,
               db.ForeignKey(add_prefix_for_prod('users.id'), ondelete='CASCADE'),
-              primary_key=True)
+              primary_key=True, index=True)
 )
 
 if environment == "production":

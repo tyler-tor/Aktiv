@@ -9,7 +9,7 @@ class Route(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey(
-        add_prefix_for_prod("users.id")), nullable=False)
+        add_prefix_for_prod("users.id")), nullable=False, index=True)
     title = db.Column(db.String(30), nullable=False)
     description = db.Column(db.String(1000), nullable=False)
     image_url = db.Column(db.String(255), nullable=False)
@@ -21,7 +21,7 @@ class Route(db.Model):
     stopover = db.Column(db.Boolean(), default=False)
     traveling_mode = db.Column(db.String(50), nullable=False)
     distance = db.Column(db.String(500))
-    created_at = db.Column(db.DateTime, default=utcnow, server_default=db.func.now())
+    created_at = db.Column(db.DateTime, default=utcnow, server_default=db.func.now(), index=True)
     updated_at = db.Column(
         db.DateTime, default=utcnow, onupdate=utcnow, server_default=db.func.now())
 
