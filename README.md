@@ -1,4 +1,4 @@
-# AKTIV - Strava Clone Project
+# Aktiv
 
 Welcome to my application where users can view/create/delete Routes and interact by commenting on their own or other's routes.
 

@@ -837,3 +837,8 @@ at the end of this file.
 - **Files:** `react-app/src/store/index.js`
 - **How to verify:** `npm run dev` in `react-app/`, open http://localhost:3000: the login page renders, and the browser console shows collapsed Redux action logs after you log in.
 - **Things to watch:** Redux DevTools covers the same need; redux-logger can be removed later.
+
+## Brand — official name is "Aktiv"
+- **What changed:** the logo wordmark now reads **Aktiv** (it was lowercase "aktiv"), and the README title is "Aktiv". Page titles and copy already used "Aktiv".
+- **Not changed (on purpose):** lowercase technical identifiers such as the repo name and the `aktiv.unit` local-storage key.
+- **Files:** `react-app/src/components/ui/Logo.jsx`, `README.md`

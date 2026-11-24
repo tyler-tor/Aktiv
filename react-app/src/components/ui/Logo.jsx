@@ -17,7 +17,7 @@ export default function Logo() {
     return (
         <span className="logo">
             <LogoMark />
-            <span className="logo__word">aktiv</span>
+            <span className="logo__word">Aktiv</span>
         </span>
     );
 }
