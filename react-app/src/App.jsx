@@ -6,6 +6,7 @@ import NavBar from './components/NavBar';
 import Footer from './components/Footer';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import NotFound from './components/NotFound';
+import RouteFocus from './components/RouteFocus';
 import { authenticate } from './store/session';
 
 // Pages are loaded on demand (one JavaScript file each), so the first visit only
@@ -48,7 +49,10 @@ function App() {
   // has a page component called Routes.)
   return (
     <BrowserRouter>
+      <a href='#main' className='skip-link'>Skip to content</a>
       <NavBar />
+      <RouteFocus />
+      <main id='main' tabIndex={-1} className='app-main'>
       <Suspense fallback={<div className='page-loading' role='status'>Loading...</div>}>
       <RouterRoutes>
         <Route path='/' element={user ? <HomePage /> : <LoginForm />} />
@@ -67,6 +71,7 @@ function App() {
         <Route path='*' element={<NotFound />} />
       </RouterRoutes>
       </Suspense>
+      </main>
       <Footer />
     </BrowserRouter>
   );

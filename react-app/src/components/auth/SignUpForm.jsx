@@ -6,8 +6,10 @@ import { uploadImage, setProfilePicture } from '../../store/uploads';
 import ImageUploadComponent from '../ImageUploadComponenet';
 import ContourBackdrop from '../ui/ContourBackdrop';
 import './AuthPages.css'
+import usePageTitle from '../../hooks/usePageTitle';
 
 const SignUpForm = () => {
+  usePageTitle('Sign up');
   const [errors, setErrors] = useState([]);
   const [username, setUsername] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -50,7 +52,7 @@ const SignUpForm = () => {
   }
 
   return (
-    <main className='auth'>
+    <div className='auth'>
       <section className='auth__hero' aria-labelledby='signup-headline'>
         <ContourBackdrop />
         <div className='auth__hero-copy'>
@@ -112,7 +114,7 @@ const SignUpForm = () => {
           <p className='auth__switch'>Already have an account? <Link to='/'>Log in</Link></p>
         </form>
       </section>
-    </main>
+    </div>
   );
 };
 

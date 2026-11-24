@@ -21,7 +21,7 @@ function Routes() {
     const routes = routesById ? Object.values(routesById).sort((a, b) => b.id - a.id) : null;
 
     return (
-        <main className='page list-page'>
+        <div className='page list-page'>
             <header className='list-page__head'>
                 <div>
                     <h1 className='list-page__title'>Routes</h1>
@@ -51,7 +51,7 @@ function Routes() {
                     ))}
                 </ul>
             )}
-        </main>
+        </div>
     );
 }
 

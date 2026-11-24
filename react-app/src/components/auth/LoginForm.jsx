@@ -4,8 +4,10 @@ import { Link, Navigate } from 'react-router';
 import { login } from '../../store/session';
 import ContourBackdrop from '../ui/ContourBackdrop';
 import './AuthPages.css'
+import usePageTitle from '../../hooks/usePageTitle';
 
 const LoginForm = () => {
+  usePageTitle('Log in');
   const [errors, setErrors] = useState([]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -37,7 +39,7 @@ const LoginForm = () => {
   }
 
   return (
-    <main className='auth'>
+    <div className='auth'>
       <section className='auth__hero' aria-labelledby='auth-headline'>
         <ContourBackdrop />
         <div className='auth__hero-copy'>
@@ -72,7 +74,7 @@ const LoginForm = () => {
           <p className='auth__switch'>New to Aktiv? <Link to='/sign-up'>Create an account</Link></p>
         </form>
       </section>
-    </main>
+    </div>
   );
 };
 

@@ -51,7 +51,7 @@ const ImageUploadComponent = ({ setUrl, onFileSelected, labelledBy }) => {
   return (
     <div className="upload">
       <div className="upload__row">
-        {uploadedImg && <img src={prevImgUrl} alt="Preview of the chosen picture" className="upload__preview" />}
+        {uploadedImg && <img src={prevImgUrl} alt="Preview of your upload" className="upload__preview" />}
         <label htmlFor={inputId} className="btn btn--secondary btn--sm upload__pick">
           <FiUploadCloud aria-hidden="true" />
           {uploadedImg ? 'Choose a different picture' : 'Choose a picture'}

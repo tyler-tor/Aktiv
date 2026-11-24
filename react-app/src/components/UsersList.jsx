@@ -19,7 +19,7 @@ function UsersList() {
   const users = usersById ? Object.values(usersById) : null;
 
   return (
-    <main className='page list-page'>
+    <div className='page list-page'>
       <header className='list-page__head'>
         <div>
           <h1 className='list-page__title'>People</h1>
@@ -45,7 +45,7 @@ function UsersList() {
           ))}
         </ul>
       )}
-    </main>
+    </div>
   );
 }
 

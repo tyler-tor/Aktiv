@@ -62,3 +62,13 @@ button { cursor: pointer; }
     scroll-behavior: auto !important;
   }
 }
+
+/* Skip link: hidden until it receives keyboard focus */
+.skip-link {
+  position: absolute; left: var(--s-4); top: -4rem; z-index: 3000;
+  padding: var(--s-3) var(--s-5); border-radius: var(--r-pill);
+  background: var(--accent); color: var(--on-accent); font-weight: 700; text-decoration: none;
+}
+.skip-link:focus { top: var(--s-3); }
+#main:focus { outline: none; }
+.app-main { flex: 1 0 auto; display: block; }

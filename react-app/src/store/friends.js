@@ -14,7 +14,7 @@ const failure = async (response) => {
     try {
         const data = await response.json();
         if (Array.isArray(data.errors)) errors = data.errors;
-    } catch (e) {
+    } catch {
         // not JSON (e.g. an HTML error page): keep the generic message
     }
     return { errors };

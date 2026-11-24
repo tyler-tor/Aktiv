@@ -23,13 +23,13 @@ export const uploadImage = async (file) => {
     let res;
     try {
         res = await csrfFetch('/api/img/upload', { method: 'POST', body: formData });
-    } catch (e) {
+    } catch {
         return { error: 'Upload failed. Check your connection and try again.' };
     }
     let data = {};
     try {
         data = await res.json();
-    } catch (e) {
+    } catch {
         // non-JSON error page
     }
     if (res.ok && data.url) return { url: data.url };

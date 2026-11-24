@@ -9,7 +9,7 @@ const guessUnit = () => {
     try {
         const saved = window.localStorage.getItem(STORAGE_KEY);
         if (saved === 'km' || saved === 'mi') return saved;
-    } catch (e) {
+    } catch {
         // localStorage can be blocked; fall through
     }
     const lang = (typeof navigator !== 'undefined' && navigator.language) || 'en-US';
@@ -34,7 +34,7 @@ export function UnitsProvider({ children }) {
         setUnitState(next);
         try {
             window.localStorage.setItem(STORAGE_KEY, next);
-        } catch (e) {
+        } catch {
             // ignore
         }
     }, []);
