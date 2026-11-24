@@ -3,12 +3,14 @@ import { useSelector, useDispatch } from 'react-redux'
 import { updateRoute } from '../../store/routes';
 import { GoogleMap, Marker } from '@react-google-maps/api';
 import { useDistanceMatrix } from '../../hooks/useDirections';
+import { useToast } from '../../context/Toast';
 import { useGoogleMaps } from '../../context/GoogleMaps';
 
 
 function EditMapForm({ route, onClose }) {
     const currUser = useSelector(state => state.session.user)
     const dispatch = useDispatch()
+    const toast = useToast()
     const [start, setStart] = useState({ ...route?.startingPoint })
     const [end, setEnd] = useState({ ...route?.endingPoint })
     const [errors, setErrors] = useState([]);
@@ -51,6 +53,7 @@ function EditMapForm({ route, onClose }) {
         if (res) {
             setErrors(res)
         } else {
+            toast.success('Route updated')
             onClose()
         }
     }

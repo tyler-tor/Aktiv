@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux';
+import { useToast } from '../../context/Toast';
 import { updateComment, deleteComment } from '../../store/comments';
 
 const EditCommentForm = ({ onClose, commentId }) => {
@@ -8,6 +9,7 @@ const EditCommentForm = ({ onClose, commentId }) => {
   const [commentInput, setCommentInput] = useState(comment || '');
   const [busy, setBusy] = useState(false);
   const dispatch = useDispatch();
+  const toast = useToast();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -17,13 +19,20 @@ const EditCommentForm = ({ onClose, commentId }) => {
       setErrors(res)
       setBusy(false)
     } else {
+      toast.success('Comment updated')
       onClose()
     }
   };
 
   const destroyComment = async () => {
     setBusy(true)
-    await dispatch(deleteComment(commentId));
+    const res = await dispatch(deleteComment(commentId));
+    if (res && res.ok === false) {
+      setErrors(['The comment could not be deleted. Try again.'])
+      setBusy(false)
+      return
+    }
+    toast.success('Comment deleted')
     onClose()
   };
 

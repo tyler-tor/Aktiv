@@ -5,6 +5,7 @@ import ImageUploadComponent from '../ImageUploadComponenet';
 import { addWorkout } from '../../store/workouts';
 import { useUnits } from '../../context/Units';
 import { unitToMeters } from '../../utils/format';
+import { useToast } from '../../context/Toast';
 import usePageTitle from '../../hooks/usePageTitle';
 import '../ui/Forms.css'
 
@@ -12,6 +13,7 @@ function NewWorkout() {
     const currUser = useSelector(state => state.session.user);
     const dispatch = useDispatch();
     const navigate = useNavigate();
+    const toast = useToast();
     usePageTitle('Log a workout');
 
     const [errors, setErrors] = useState([]);
@@ -52,6 +54,7 @@ function NewWorkout() {
         if (data) {
             setErrors(data)
         } else {
+            toast.success('Workout saved')
             navigate('/activity')
         }
     }

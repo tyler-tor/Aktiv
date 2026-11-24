@@ -1,12 +1,14 @@
 import React, { useState } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { updateWorkout } from '../../store/workouts'
+import { useToast } from '../../context/Toast'
 import { useUnits } from '../../context/Units'
 import { metersToUnit, unitToMeters } from '../../utils/format'
 
 function EditWorkoutForm({ workout, onClose }) {
   const currUser = useSelector(state => state.session.user);
   const dispatch = useDispatch();
+  const toast = useToast();
   const [errors, setErrors] = useState([]);
   const [saving, setSaving] = useState(false);
   const [title, setTitle] = useState(workout?.title)
@@ -38,6 +40,7 @@ function EditWorkoutForm({ workout, onClose }) {
     if (res) {
       setErrors(res)
     } else {
+      toast.success('Workout updated')
       onClose()
     }
   }

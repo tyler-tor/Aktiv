@@ -4,6 +4,7 @@ import { Provider } from 'react-redux';
 import { ModalProvider } from './context/Modal';
 import { GoogleMapsProvider } from './context/GoogleMaps';
 import { UnitsProvider } from './context/Units';
+import { ToastProvider } from './context/Toast';
 import App from './App';
 import configureStore from './store';
 import './index.css';
@@ -16,9 +17,11 @@ createRoot(document.getElementById('root')).render(
     <Provider store={store}>
       <GoogleMapsProvider>
         <UnitsProvider>
-          <ModalProvider>
-            <App />
-          </ModalProvider>
+          <ToastProvider>
+            <ModalProvider>
+              <App />
+            </ModalProvider>
+          </ToastProvider>
         </UnitsProvider>
       </GoogleMapsProvider>
     </Provider>

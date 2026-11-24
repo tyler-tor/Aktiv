@@ -8,6 +8,7 @@ import { useDistanceMatrix } from '../../hooks/useDirections';
 import { useGoogleMaps } from '../../context/GoogleMaps';
 import { useUnits } from '../../context/Units'
 import { formatDuration } from '../../utils/format'
+import { useToast } from '../../context/Toast'
 import usePageTitle from '../../hooks/usePageTitle'
 import '../ui/Forms.css'
 
@@ -26,6 +27,7 @@ function NewRoute() {
   const [end, setEnd] = useState(null)
   const [errors, setErrors] = useState([]);
   const [saving, setSaving] = useState(false)
+  const toast = useToast()
   const { distance: fmtDistance } = useUnits()
   usePageTitle('Plan a route')
   const [title, setTitle] = useState('')
@@ -73,6 +75,7 @@ function NewRoute() {
         if (data) {
           setErrors(data)
         }else {
+          toast.success('Route saved')
           navigate('/routes')
         }
       }

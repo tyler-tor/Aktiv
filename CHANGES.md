@@ -794,3 +794,16 @@ at the end of this file.
 - **How to verify:** `npm run lint` prints nothing. In the app press Tab from the address bar: the first stop is "Skip to content". Open "Add comment", press Tab repeatedly (focus stays inside), press Escape (dialog closes, focus is back on "Add comment"). Turn on a screen reader and open a profile: the title and heading are announced.
   Verified: jsdom test opens the dialog, checks `role`, `aria-modal`, accessible name, focus inside, Escape closes and focus returns; build and the 25 page scenarios pass.
 - **Things to watch:** I could not run a screen reader or an automated browser audit (axe/Lighthouse) here; the audit numbers above come from static linting and the contrast calculations in A34. Please run Lighthouse once on the deployed site.
+
+## A35 — Loading, empty and error states, toasts
+- **Problem:** Pages showed nothing (or the word "Loading....") while data arrived, an empty list was a blank area, failures were silent, a missing route or workout rendered a blank page, and buttons could be double-clicked while a save was running.
+- **What changed:**
+  - **Loading:** skeleton blocks (a shimmering placeholder in the card's final size, so the page does not jump) on the feed, Routes, People, profile, route and workout detail, comments and the map; the map shows "Loading map..." in a placeholder until the Google script is ready. Skeletons are announced as "Loading ..." to screen readers and the shimmer stops under `prefers-reduced-motion`.
+  - **Empty:** the feed ("Nothing from your friends yet" with buttons to show everyone or plan a route), Routes, a profile with no activity (different text for your own profile and someone else's), comments ("No comments yet") and suggestions each say what is missing and what to do.
+  - **Errors:** a route, workout or profile that does not exist now shows "Route not found" (etc.) with a link back; a failed feed or Routes load shows an error with a retry; form errors appear inline in an alert region; delete failures are reported in the dialog; an `ErrorBoundary` around the pages replaces a crashed page by "Something went wrong" with a reload button.
+  - **Saving:** every submit button is disabled and relabelled ("Saving...", "Posting...", "Working...") while its request runs.
+  - **Toasts:** `context/Toast.jsx` shows short confirmations ("Route saved", "Workout updated", "Comment posted", "Comment deleted", "Friend added", "Removed from friends", ...) in a polite `aria-live` region, auto-dismissed after 4.5 s (8 s for errors), dismissable with a button, at most three at once.
+- **Files:** `react-app/src/context/Toast.{jsx,css}`, `src/components/ErrorBoundary.jsx`, `src/main.jsx`, `src/App.jsx`, the form and dialog components, the page components (states were introduced together with A34)
+- **How to verify:** open `/routes/99999` (not found), throttle the network in the browser tools to see skeletons, create then delete a route and watch the toasts, stop the backend and open the feed to see the retry state.
+  Verified: build, lint (0 findings), and the jsdom scenarios, which include the not-found route page, empty and populated lists and the dialogs.
+- **Things to watch:** toasts and skeleton timing were not seen in a real browser. The error-boundary path is code-reviewed only; I did not force a render crash.

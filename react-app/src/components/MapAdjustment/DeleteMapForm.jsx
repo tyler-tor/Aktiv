@@ -2,14 +2,18 @@ import React from 'react'
 import { useDispatch } from 'react-redux'
 import { useNavigate } from 'react-router';
 import { deleteRoute } from '../../store/routes'
+import { useToast } from '../../context/Toast';
 import ConfirmForm from '../ui/ConfirmForm';
 
 function DeleteMapForm({routeId, onClose}) {
   const dispatch = useDispatch()
   const navigate = useNavigate();
+  const toast = useToast();
 
   const destroyRoute = async () => {
-    await dispatch(deleteRoute(routeId))
+    const res = await dispatch(deleteRoute(routeId))
+    if (res && res.ok === false) return ['The route could not be deleted. Try again.']
+    toast.success('Route deleted')
     onClose()
     navigate('/routes')
   }

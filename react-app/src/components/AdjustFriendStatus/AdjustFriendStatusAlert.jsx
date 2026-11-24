@@ -1,10 +1,12 @@
 import React from 'react'
 import { useDispatch } from 'react-redux'
 import { addFriend, deleteFriend } from '../../store/friends';
+import { useToast } from '../../context/Toast';
 import ConfirmForm from '../ui/ConfirmForm';
 
 function AdjustFriendStatusAlert({ userId, status, setStatus, onClose, setLoading, name }) {
   const dispatch = useDispatch();
+  const toast = useToast();
 
   const submit = async () => {
     const res = await dispatch(status ? deleteFriend(userId) : addFriend(userId))
@@ -12,6 +14,7 @@ function AdjustFriendStatusAlert({ userId, status, setStatus, onClose, setLoadin
       return res.errors
     }
     setStatus(!status)
+    toast.success(status ? 'Removed from friends' : 'Friend added')
     onClose()
     setLoading(true)
   }

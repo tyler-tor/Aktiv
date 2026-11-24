@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useDispatch } from 'react-redux';
+import { useToast } from '../../context/Toast';
 import { newRouteComment, newWorkoutComment } from '../../store/comments';
 
 function AddCommentForm({ onClose, id, kind = 'route' }) {
@@ -7,6 +8,7 @@ function AddCommentForm({ onClose, id, kind = 'route' }) {
     const [commentInput, setCommentInput] = useState('');
     const [busy, setBusy] = useState(false);
     const dispatch = useDispatch();
+    const toast = useToast();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -19,6 +21,7 @@ function AddCommentForm({ onClose, id, kind = 'route' }) {
             setErrors(res)
             setBusy(false)
         } else {
+            toast.success('Comment posted')
             onClose()
         }
     };
