@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 from flask_login import login_required, current_user
+from sqlalchemy.orm import joinedload
 from app.models import Workout, Comment, db
 from ..forms.workout_form import CreateWorkoutForm
 from ..forms.comment_form import CreateCommentForm
@@ -30,7 +31,8 @@ def all_workouts():
     """
     Returns all workouts in a list of workout dictionaries
     """
-    workouts = db.session.scalars(db.select(Workout)).all()
+    workouts = db.session.scalars(
+        db.select(Workout).options(joinedload(Workout.users)).order_by(Workout.id)).all()
     return {'workouts': [workout.to_dict() for workout in workouts]}
 
 
@@ -68,7 +70,7 @@ def one_workout(id):
     """
     Returns one workout by id (404 if it does not exist)
     """
-    workout = db.session.get(Workout, id)
+    workout = db.session.get(Workout, id, options=[joinedload(Workout.users)])
     if workout is None:
         return workout_not_found()
     return workout.to_dict()

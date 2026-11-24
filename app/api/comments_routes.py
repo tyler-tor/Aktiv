@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 from flask_login import login_required, current_user
+from sqlalchemy.orm import joinedload
 from app.models import Comment, db
 from ..forms.comment_form import CreateCommentForm
 
@@ -22,9 +23,10 @@ def validation_errors_to_error_messages(validation_errors):
 @login_required
 def all_comments():
     """
-    Query for all users and returns them in a list of user dictionaries
+    Returns all comments in a list of comment dictionaries
     """
-    comments = db.session.scalars(db.select(Comment)).all()
+    comments = db.session.scalars(
+        db.select(Comment).options(joinedload(Comment.users)).order_by(Comment.id)).all()
     return {'comments': [comment.to_dict() for comment in comments]}
 
 

@@ -603,3 +603,14 @@ at the end of this file.
   - API consumers (only the React app here) must use `commentCount` instead of `comments`, and read dates as ISO strings. A page that needs the comments of a route calls `/api/routes/<id>/comments`.
   - The e-mail address of other users is no longer sent to the browser at all. That is a privacy improvement; only `/api/auth/` returns your own.
   - `friends[].userId` is kept next to `id` for now; new code should use `id`.
+
+## A25 — Fix N+1 queries with eager loading
+- **Problem:** "N+1" means one query to get a list plus one more query for every row in it. The list endpoints loaded each route's/workout's/comment's owner lazily (one query per distinct owner), and `/api/me/friends/activity` ran **two queries per friend** inside a Python loop. Query count grew with the data, which is slow on Postgres where every query is a network round trip.
+- **What changed:**
+  - `/api/routes/`, `/api/workouts/`, `/api/comments/`, `/api/routes/<id>`, `/api/workouts/<id>` use `joinedload(...users)` so the owner comes back in the same SELECT. Lists are explicitly ordered by id (before: whatever order the database returned).
+  - `/api/routes/<id>/comments` is now a single query for the comments with their authors (`joinedload(Comment.users)`), ordered by id, instead of walking `route.comments` and loading each author separately.
+  - `/api/me/friends/activity`: one query for the friend ids, then one query for all their routes and one for all their workouts (`user_id IN (...)`, newest first, ties broken by id). It returns the same `{routes, workouts}` shape.
+  - The "suggested friends" filter by id in SQL was already done in A24; `commentCount` is a subquery column (A24), so counting comments needs no extra query.
+- **Files:** `app/api/{route_routes,workout_routes,comments_routes,me_routes}.py`
+- **How to verify:** with SQL echo on (`SQLALCHEMY_ECHO=1` in `.env`, or `flask shell` and an engine event) open the feed: the number of queries is the same whether the database has 20 routes or 80. Verified by a test that counts the queries of 10 endpoints, adds 30 routes + 30 workouts + 60 comments across all users, and asserts the counts did not change: `/api/routes/` 2, `/api/workouts/` 2, `/api/comments/` 2, feed 4 (was 46 on the seeded data and growing), `/api/auth/` 5, `/api/users/2` 5, route comments 3 (14 checks). All earlier test scripts still pass.
+- **Things to watch:** The feed endpoint is only friends' activity, as before (not your own posts). Pagination of these lists comes in A27.

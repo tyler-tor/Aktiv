@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 from flask_login import login_required, current_user
+from sqlalchemy.orm import joinedload
 from app.models import Comment, Route, db
 from ..forms.route_form import CreateRouteForm
 from ..forms.comment_form import CreateCommentForm
@@ -29,7 +30,9 @@ def all_routes():
     """
     Returns all routes in a list of route dictionaries
     """
-    routes = db.session.scalars(db.select(Route)).all()
+    # joinedload: the owner is fetched in the same query (no query per route)
+    routes = db.session.scalars(
+        db.select(Route).options(joinedload(Route.users)).order_by(Route.id)).all()
     return {'routes': [route.to_dict() for route in routes]}
 
 
@@ -71,7 +74,7 @@ def one_route(id):
     """
     Returns one route by id (404 if it does not exist)
     """
-    route = db.session.get(Route, id)
+    route = db.session.get(Route, id, options=[joinedload(Route.users)])
     if route is None:
         return route_not_found()
     return route.to_dict()
@@ -124,7 +127,12 @@ def get_comments_to_route(id):
     route = db.session.get(Route, id)
     if route is None:
         return route_not_found()
-    return {'comments': [comment.to_dict() for comment in route.comments]}
+    comments = db.session.scalars(
+        db.select(Comment)
+        .where(Comment.route_id == route.id)
+        .options(joinedload(Comment.users))
+        .order_by(Comment.id)).all()
+    return {'comments': [comment.to_dict() for comment in comments]}
 
 
 # add a comment to a route
