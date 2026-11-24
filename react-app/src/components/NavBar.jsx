@@ -61,6 +61,12 @@ const NavBar = () => {
                 <li className='nav-item'>
                   <NavLink to='/' end
                     className='nav-links' onClick={closeMobileMenu}>
+                    Map
+                  </NavLink>
+                </li>
+                <li className='nav-item'>
+                  <NavLink to='/routes' end
+                    className='nav-links' onClick={closeMobileMenu}>
                     Routes
                   </NavLink>
                 </li>
@@ -68,6 +74,12 @@ const NavBar = () => {
                   <NavLink to='/activity' end
                     className='nav-links' onClick={closeMobileMenu}>
                     Activity
+                  </NavLink>
+                </li>
+                <li className='nav-item'>
+                  <NavLink to='/users' end
+                    className='nav-links' onClick={closeMobileMenu}>
+                    Users
                   </NavLink>
                 </li>
                 <li className='nav-item'>

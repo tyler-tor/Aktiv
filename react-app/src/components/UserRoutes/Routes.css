@@ -1,0 +1,42 @@
+.list-page {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 24px 16px 96px;
+    color: #fff;
+}
+
+.list-page-title {
+    margin-bottom: 16px;
+}
+
+.list-page-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.list-page-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: #242424;
+}
+
+.list-page-link,
+.list-page-status a {
+    color: #fff;
+    font-size: 1.1rem;
+}
+
+.list-page-meta,
+.list-page-status {
+    color: #d0d7e2;
+}
+
+.list-page-status {
+    padding: 24px 16px;
+    text-align: center;
+}
