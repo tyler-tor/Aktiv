@@ -4,6 +4,7 @@ from sqlalchemy.orm import joinedload
 from app.models import Workout, Comment, db
 from ..forms.workout_form import CreateWorkoutForm
 from ..forms.comment_form import CreateCommentForm
+from .pagination import PaginationError, get_limit, paginate
 
 
 workout_routes = Blueprint('workouts', __name__)
@@ -29,11 +30,19 @@ def workout_not_found():
 @login_required
 def all_workouts():
     """
-    Returns all workouts in a list of workout dictionaries
+    Returns workouts as a list of workout dictionaries.
+
+    Without parameters: every workout, ordered by id. `?limit=20&cursor=...`:
+    one page, newest first, with `nextCursor` (null on the last page).
     """
-    workouts = db.session.scalars(
-        db.select(Workout).options(joinedload(Workout.users)).order_by(Workout.id)).all()
-    return {'workouts': [workout.to_dict() for workout in workouts]}
+    try:
+        limit = get_limit(request.args)
+        workouts, next_cursor = paginate(
+            db.session, db.select(Workout).options(joinedload(Workout.users)),
+            Workout, limit, request.args.get('cursor'))
+    except PaginationError as error:
+        return {'errors': [str(error)]}, 400
+    return {'workouts': [workout.to_dict() for workout in workouts], 'nextCursor': next_cursor}
 
 
 # add a new workout

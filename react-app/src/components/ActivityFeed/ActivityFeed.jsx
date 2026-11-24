@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
-import { getAllFriendsActivity } from '../../store/friendsActivity';
-import { getAllRoutes } from '../../store/routes';
-import { getAllWorkouts } from '../../store/workouts';
+import { getFeed, getMoreFeed } from '../../store/friendsActivity';
 import { NavLink } from 'react-router';
 import './ActivityFeed.css';
 import { GOOGLE_MAPS_API_KEY } from '../../config';
@@ -14,61 +12,42 @@ function ActivityFeed() {
     // (This used to be written onto the route objects themselves, i.e. it
     // mutated Redux state; Redux Toolkit freezes state, so it lives here now.)
     const [mapSrcs, setMapSrcs] = useState({})
-    const [following, setFollowing] = useState('Following')
-    const [merged, setMerged] = useState([])
-    const friendsRoutes = useSelector(state => state.friendsActivity.routes)
-    const routes = Object.values(useSelector(state => state.routes.routes ? state.routes.routes : {}))
-    const workouts = Object.values(useSelector(state => state.workouts.workouts ? state.workouts.workouts : {}))
-    const friendsWorkouts = useSelector(state => state.friendsActivity.workouts)
+    const { items, nextCursor, scope, loadingMore } = useSelector(state => state.friendsActivity)
+    const following = scope === 'friends' ? 'Following' : 'All Activity'
     const currUser = useSelector(state => state.session.user)
 
-    const compare = (a, b) => {
-        if (a.createdAt < b.createdAt) {
-            return -1;
-        } else if (a.createdAt > b.createdAt) {
-            return 1;
-        } else {
-            return 0;
-        };
-    };
-
+    // First page of the feed (friends only until the user picks "All Activity").
     useEffect(() => {
+        dispatch(getFeed('friends'))
+    }, [dispatch])
+
+    // Static map thumbnails for the routes on screen (only the ones we do not have yet).
+    useEffect(() => {
+        if (!items) return;
+        let cancelled = false;
         (async () => {
-            if (friendsRoutes && routes) {
-                let arr = (following === 'Following') ? [...friendsRoutes] : [...routes]
-                const srcs = {}
-                for (let route of arr) {
-                    await fetch(`https://maps.googleapis.com/maps/api/directions/json?origin=${route.startingPoint.lat},${route.startingPoint.lng}&destination=${route.endingPoint.lat},${route.endingPoint.lng}&mode=${route.travelMode}&key=${GOOGLE_MAPS_API_KEY}`).then(async (res) => {
-                        if (res.ok) {
-                            let jsonify = await res.json()
+            const srcs = {}
+            for (let route of items) {
+                if (route.kind !== 'route' || mapSrcs[route.id]) continue
+                await fetch(`https://maps.googleapis.com/maps/api/directions/json?origin=${route.startingPoint.lat},${route.startingPoint.lng}&destination=${route.endingPoint.lat},${route.endingPoint.lng}&mode=${route.travelMode}&key=${GOOGLE_MAPS_API_KEY}`).then(async (res) => {
+                    if (res.ok) {
+                        let jsonify = await res.json()
+                        if (jsonify.routes && jsonify.routes[0]) {
                             srcs[route.id] = `https://maps.googleapis.com/maps/api/staticmap?size=500x400&markers=${route.startingPoint.lat},${route.startingPoint.lng}|${route.endingPoint.lat},${route.endingPoint.lng}&path=enc:${jsonify.routes[0].overview_polyline.points}&key=${GOOGLE_MAPS_API_KEY}`
                         }
-                    })
-                }
-                setMapSrcs(srcs)
+                    }
+                }).catch(() => {})
             }
+            if (!cancelled && Object.keys(srcs).length) setMapSrcs(prev => ({ ...prev, ...srcs }))
         })();
-    }, [following, dispatch, merged])
+        return () => { cancelled = true };
+    }, [items])
 
-    useEffect(() => {
-        dispatch(getAllRoutes());
-        dispatch(getAllWorkouts())
-        dispatch(getAllFriendsActivity())
-    }, [])
-
-    useEffect(() => {
-        if (friendsRoutes && friendsWorkouts && (following === 'Following')) {
-            setMerged([...friendsRoutes, ...friendsWorkouts].sort(compare))
-        } else {
-            setMerged([...routes, ...workouts].sort(compare))
-        }
-    }, [friendsRoutes, friendsWorkouts,  following])
-
-    if (!friendsRoutes) {
+    if (!items) {
         return null;
     }
 
-    return friendsRoutes && friendsWorkouts && currUser && (
+    return currUser && (
         <div className='activity-feed-container'>
             <div className='curruser-container'>
                 <div className='propic-wrapper'>
@@ -123,25 +102,25 @@ function ActivityFeed() {
                     <select
                         name='following'
                         value={following}
-                        onChange={(e) => setFollowing(e.target.value)}
+                        onChange={(e) => dispatch(getFeed(e.target.value === 'Following' ? 'friends' : 'all'))}
                         className='select-input'
                     >
                         <option>Following</option>
                         <option>All Activity</option>
                     </select>
                 </div>
-                {merged?.map((activity, ind) => {
+                {items.map((activity) => {
                     // Only routes (they have a startingPoint) get a map image;
                     // route and workout ids can overlap.
-                    const routeMapSrc = activity.startingPoint ? mapSrcs[activity.id] : undefined
+                    const routeMapSrc = activity.kind === 'route' ? mapSrcs[activity.id] : undefined
                     return (
                         <div className='af-posts-container'
-                            key={ind}>
-                            {routeMapSrc ? (
+                            key={`${activity.kind}-${activity.id}`}>
+                            {activity.kind === 'route' ? (
                                 <div className='post-info-container'>
                                     <a className='img-container'
                                         href={`/routes/${activity.id}`}>
-                                        <img src={routeMapSrc} alt='route map'
+                                        <img src={routeMapSrc || activity.imageUrl} alt='route map'
                                             className='static-map'
                                         />
                                     </a>
@@ -229,6 +208,15 @@ function ActivityFeed() {
                         </div>
                     )
                 })}
+                {items.length === 0 && (
+                    <p className='act-description'>No activity yet.</p>
+                )}
+                {nextCursor && (
+                    <button className='btn btn--outline btn--medium' disabled={loadingMore}
+                        onClick={() => dispatch(getMoreFeed())}>
+                        {loadingMore ? 'Loading...' : 'Load more'}
+                    </button>
+                )}
             </div>
             <div className='nonfriend-container'>
                 <h2

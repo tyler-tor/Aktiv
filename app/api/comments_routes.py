@@ -3,6 +3,7 @@ from flask_login import login_required, current_user
 from sqlalchemy.orm import joinedload
 from app.models import Comment, db
 from ..forms.comment_form import CreateCommentForm
+from .pagination import PaginationError, get_limit, paginate
 
 comment_routes = Blueprint('comments', __name__)
 
@@ -23,11 +24,19 @@ def validation_errors_to_error_messages(validation_errors):
 @login_required
 def all_comments():
     """
-    Returns all comments in a list of comment dictionaries
+    Returns comments as a list of comment dictionaries.
+
+    Without parameters: every comment, ordered by id. `?limit=20&cursor=...`:
+    one page, newest first, with `nextCursor` (null on the last page).
     """
-    comments = db.session.scalars(
-        db.select(Comment).options(joinedload(Comment.users)).order_by(Comment.id)).all()
-    return {'comments': [comment.to_dict() for comment in comments]}
+    try:
+        limit = get_limit(request.args)
+        comments, next_cursor = paginate(
+            db.session, db.select(Comment).options(joinedload(Comment.users)),
+            Comment, limit, request.args.get('cursor'))
+    except PaginationError as error:
+        return {'errors': [str(error)]}, 400
+    return {'comments': [comment.to_dict() for comment in comments], 'nextCursor': next_cursor}
 
 
 def comment_not_found():

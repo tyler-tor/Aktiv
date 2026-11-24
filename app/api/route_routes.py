@@ -4,6 +4,7 @@ from sqlalchemy.orm import joinedload
 from app.models import Comment, Route, db
 from ..forms.route_form import CreateRouteForm
 from ..forms.comment_form import CreateCommentForm
+from .pagination import PaginationError, get_limit, paginate
 
 route_routes = Blueprint('routes', __name__)
 
@@ -28,12 +29,21 @@ def route_not_found():
 @login_required
 def all_routes():
     """
-    Returns all routes in a list of route dictionaries
+    Returns routes as a list of route dictionaries.
+
+    Without parameters: every route (the home map needs them all), ordered by id.
+    `?limit=20&cursor=...`: one page, newest first; `nextCursor` in the answer
+    is the cursor for the next page (null on the last page).
     """
-    # joinedload: the owner is fetched in the same query (no query per route)
-    routes = db.session.scalars(
-        db.select(Route).options(joinedload(Route.users)).order_by(Route.id)).all()
-    return {'routes': [route.to_dict() for route in routes]}
+    try:
+        limit = get_limit(request.args)
+        # joinedload: the owner is fetched in the same query (no query per route)
+        routes, next_cursor = paginate(
+            db.session, db.select(Route).options(joinedload(Route.users)),
+            Route, limit, request.args.get('cursor'))
+    except PaginationError as error:
+        return {'errors': [str(error)]}, 400
+    return {'routes': [route.to_dict() for route in routes], 'nextCursor': next_cursor}
 
 
 # add a new route
