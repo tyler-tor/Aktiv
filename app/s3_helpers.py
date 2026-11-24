@@ -1,9 +1,8 @@
 import boto3
-import botocore
-import os
 import io
 import uuid
 
+from flask import current_app
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 # The boto3 client is created on first use (not at import time), and it gets
@@ -17,8 +16,7 @@ _s3_client = None
 def get_s3_client():
     global _s3_client
     if _s3_client is None:
-        _s3_client = boto3.client(
-            "s3", region_name=os.environ.get("AWS_REGION") or None)
+        _s3_client = boto3.client("s3", region_name=current_app.config['AWS_REGION'])
     return _s3_client
 
 
@@ -110,28 +108,44 @@ def get_unique_filename(filename):
     return f'{UPLOAD_PREFIX}{unique_filename}.{ext}'
 
 
-BUCKET_NAME = os.environ.get('S3_BUCKET')
-# Public base URL for uploaded files. Defaults to the bucket's own URL; set
-# S3_PUBLIC_URL (e.g. https://cdn.example.com/) when serving through CloudFront.
-S3_LOCATION = os.environ.get('S3_PUBLIC_URL') or f'https://{BUCKET_NAME}.s3.amazonaws.com/'
-if not S3_LOCATION.endswith('/'):
-    S3_LOCATION += '/'
+def media_base_url():
+    """
+    Public base URL of uploaded files, always ending in "/".
+
+    MEDIA_BASE_URL in production (https://aktiv.tylertorrero.dev/media: the
+    bucket stays private and CloudFront serves /media/* from it). Without it,
+    the bucket's own S3 URL.
+    """
+    base = current_app.config.get('MEDIA_BASE_URL')
+    if not base:
+        base = (f"https://{current_app.config.get('S3_BUCKET')}.s3."
+                f"{current_app.config['AWS_REGION']}.amazonaws.com")
+    return base.rstrip('/') + '/'
+
+
+def is_uploaded_image_url(url):
+    """True for a URL returned by /api/img/upload (our media, uploads/ prefix)."""
+    return isinstance(url, str) and url.startswith(media_base_url() + UPLOAD_PREFIX)
 
 
 def upload_file_to_s3(file, content_type=None):
     # No ACL: new S3 buckets have ACLs disabled ("bucket owner enforced") and
-    # reject uploads that send one. Public read access to uploads/* is granted
-    # by a bucket policy (or CloudFront) instead.
+    # reject uploads that send one. Read access is granted to CloudFront only
+    # (Origin Access Control), so the bucket never has to be public.
+    bucket = current_app.config.get('S3_BUCKET')
+    if not bucket:
+        return {'errors': 'Image uploads are not configured (S3_BUCKET is not set)'}
     try:
         get_s3_client().upload_fileobj(
             file,
-            BUCKET_NAME,
+            bucket,
             file.filename,
             ExtraArgs={
                 'ContentType': content_type or file.content_type
             }
         )
     except Exception as e:
-        # in case the s3 upload fails
-        return {'errors': str(e)}
-    return {'url': f'{S3_LOCATION}{file.filename}'}
+        # in case the s3 upload fails (logged in full, short message to the user)
+        current_app.logger.warning('S3 upload failed: %s', e)
+        return {'errors': 'Upload failed, please try again'}
+    return {'url': f'{media_base_url()}{file.filename}'}

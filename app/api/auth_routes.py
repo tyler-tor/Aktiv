@@ -5,7 +5,7 @@ from app.forms import LoginForm
 from app.forms import SignUpForm
 from flask_login import current_user, login_user, logout_user, login_required
 from werkzeug.security import generate_password_hash, check_password_hash
-from app.s3_helpers import S3_LOCATION, UPLOAD_PREFIX
+from app.s3_helpers import is_uploaded_image_url
 
 auth_routes = Blueprint('auth', __name__)
 
@@ -122,7 +122,7 @@ def set_profile_picture():
     """
     data = request.get_json(silent=True) or {}
     url = data.get('profile_picture') or ''
-    if not isinstance(url, str) or len(url) > 255 or not url.startswith(S3_LOCATION + UPLOAD_PREFIX):
+    if not isinstance(url, str) or len(url) > 255 or not is_uploaded_image_url(url):
         return {'errors': ['profile_picture must be an image uploaded through /api/img/upload']}, 400
     current_user.profile_picture = url
     db.session.commit()

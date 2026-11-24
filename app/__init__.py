@@ -1,9 +1,19 @@
+"""Aktiv Flask application.
+
+Use the app factory: `create_app()` builds a new, fully configured app.
+  * `flask ...` commands find it automatically (FLASK_APP=app in .flaskenv).
+  * gunicorn uses `wsgi:app` (see wsgi.py and gunicorn.conf.py).
+  * tests call `create_app('testing')` to get a fresh copy with test settings.
+"""
 import os
 
 from flask import Flask, request, send_from_directory
 from flask_wtf.csrf import CSRFError, generate_csrf
+from sqlalchemy import text
+from werkzeug.exceptions import HTTPException
+from werkzeug.middleware.proxy_fix import ProxyFix
 
-from .config import APP_ENV, get_config, check_secret_key
+from .config import get_app_env, get_config, check_secret_key
 from .extensions import db, login, migrate, csrf
 from .models import User
 from .api.user_routes import user_routes
@@ -22,19 +32,22 @@ def create_app(config_name=None):
     Application factory: builds and returns a configured Flask app.
 
     config_name is 'development', 'testing' or 'production' (defaults to
-    APP_ENV). `flask run` / `flask db ...` find this function automatically
-    (FLASK_APP=app); gunicorn uses `gunicorn "app:create_app()"`.
+    APP_ENV).
     """
-    config_name = config_name or APP_ENV
-    # The React production build (`npm run build` in react-app/ -> dist/).
-    app = Flask(__name__, static_folder='../react-app/dist', static_url_path='/')
+    config_name = config_name or get_app_env()
+    # static_folder=None: the React build is served by react_root() below
+    # (only when SERVE_FRONTEND is on), so Flask's own /<path> static route
+    # never answers a deep link such as /routes/3 with a 404.
+    app = Flask(__name__, static_folder=None)
+    app.config['FRONTEND_DIST'] = os.path.abspath(
+        os.path.join(app.root_path, '..', 'react-app', 'dist'))
 
     app.config.from_object(get_config(config_name))
     check_secret_key(app.config.get('SECRET_KEY'), config_name)
     if not app.config.get('SQLALCHEMY_DATABASE_URI'):
         raise RuntimeError(
             'DATABASE_URL is not set. Add it to .env, e.g. DATABASE_URL=sqlite:///dev.db '
-            '(local) or postgresql://user:password@host:5432/dbname')
+            '(local) or postgresql://aktiv@host:5432/aktiv plus DATABASE_PASSWORD')
 
     # Flask-SQLAlchemy 3 resolves a relative SQLite path (sqlite:///dev.db)
     # against the instance/ folder; 2.x used the app/ package folder. Keep the
@@ -44,6 +57,18 @@ def create_app(config_name=None):
         path = uri[len('sqlite:///'):]
         if path and path != ':memory:' and not os.path.isabs(path):
             app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(app.root_path, path)
+
+    # Behind CloudFront + Caddy, trust their X-Forwarded-* headers so
+    # request.scheme is "https", request.host is the public site name and
+    # request.remote_addr is the visitor. Flask-WTF's CSRF check compares the
+    # Referer with https://<request.host>/ on HTTPS requests, so without this
+    # every POST over HTTPS would fail with "The referrer does not match the
+    # host". Off unless TRUSTED_PROXY_HOPS / _FOR are set (1 by default in
+    # production, 0 elsewhere).
+    hops = app.config['TRUSTED_PROXY_HOPS']
+    for_hops = app.config['TRUSTED_PROXY_HOPS_FOR']
+    if hops or for_hops:
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=for_hops, x_proto=hops, x_host=hops)
 
     # Extensions
     db.init_app(app)
@@ -67,6 +92,11 @@ def create_app(config_name=None):
     register_hooks(app)
     register_app_routes(app)
     register_error_handlers(app)
+    # The React build is only served when SERVE_FRONTEND is on (local
+    # development). In production the app is API-only: CloudFront serves the
+    # site from S3 and sends only /api/* here, so any other path is a 404.
+    if app.config['SERVE_FRONTEND']:
+        register_frontend_routes(app)
     return app
 
 
@@ -76,16 +106,18 @@ def load_user(id):
 
 
 # No CORS: the React app is always served from the same origin as the API
-# (Flask serves the build in production; the Vite dev server proxies /api to
-# Flask in development), so browsers never make cross-origin API calls.
-
-# (The Heroku-era https_redirect hook was removed: HTTPS redirects are done
-# by the proxy in front of the app - Render/CloudFront/Caddy.)
+# (CloudFront sends /api/* to this app in production; the Vite dev server
+# proxies /api to Flask in development), so browsers never make cross-origin
+# API calls.
 
 
 def register_hooks(app):
     @app.after_request
     def inject_csrf_token(response):
+        # Health checks run every few seconds from Docker/monitoring and need
+        # no session, so they get no cookies (and no session work).
+        if request.path.startswith('/api/health'):
+            return response
         response.set_cookie(
             'csrf_token',
             generate_csrf(),
@@ -98,22 +130,55 @@ def register_hooks(app):
 
     @app.after_request
     def cache_headers(response):
-        """
-        Browser caching of the React build (when Flask serves it):
-        files in /assets/ have a content hash in their name (index-3f9a1c.js), so
-        they can be cached for a year and a new build simply has new names;
-        index.html (and deep links such as /routes/3, which also return it) must
-        always be re-checked so users get the newest build.
-        """
-        if response.status_code == 200 and not request.path.startswith('/api/'):
-            if request.path.startswith('/assets/'):
-                response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
-            elif response.mimetype == 'text/html':
-                response.headers['Cache-Control'] = 'no-cache'
+        # API answers are per-user data: never let a browser or CDN keep them.
+        if request.path.startswith('/api/'):
+            response.headers.setdefault('Cache-Control', 'no-store')
+        return response
+
+    @app.after_request
+    def security_headers(response):
+        # The React site's own headers (its Content-Security-Policy etc.) are
+        # set by CloudFront, which serves it from S3; these cover what Flask
+        # answers, mostly JSON.
+        headers = response.headers
+        headers.setdefault('X-Content-Type-Options', 'nosniff')
+        # Full URL to our own origin (Flask-WTF checks it on HTTPS), only the
+        # origin to other sites. Never "no-referrer": that breaks CSRF checks.
+        headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+        headers.setdefault('X-Frame-Options', 'DENY')
+        if request.path.startswith('/api/'):
+            # JSON never needs to load anything or be framed.
+            headers.setdefault('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'")
+            headers.setdefault('Cross-Origin-Resource-Policy', 'same-origin')
+        if app.config['IS_PRODUCTION'] and app.config['HSTS_SECONDS']:
+            headers.setdefault('Strict-Transport-Security', f"max-age={app.config['HSTS_SECONDS']}")
         return response
 
 
 def register_app_routes(app):
+    @app.route('/api/health')
+    def health():
+        """
+        Liveness check for Docker / Caddy / CloudFront: the process answers.
+        No login, no database, no cookies, so a database hiccup never makes
+        Docker restart a healthy container.
+        """
+        return {'status': 'ok'}
+
+    @app.route('/api/health/db')
+    def health_db():
+        """
+        Readiness check: one trivial query. For monitoring and deploy
+        scripts, not for the Docker HEALTHCHECK.
+        """
+        try:
+            db.session.execute(text('SELECT 1'))
+        except Exception:
+            app.logger.exception('Database health check failed')
+            db.session.rollback()
+            return {'status': 'error', 'database': 'unreachable'}, 503
+        return {'status': 'ok', 'database': 'ok'}
+
     @app.route("/api/docs")
     def api_help():
         """
@@ -127,18 +192,41 @@ def register_app_routes(app):
                         for rule in app.url_map.iter_rules() if rule.endpoint != 'static' }
         return route_list
 
+
+def register_frontend_routes(app):
+    """Serve react-app/dist: real files as-is, every other URL gets index.html."""
+
     @app.route('/', defaults={'path': ''})
     @app.route('/<path:path>')
     def react_root(path):
-        """
-        This route will direct to the public directory in our
-        react builds in the production environment for favicon
-        or index.html requests
-        """
-        if path == 'favicon.ico':
-            # (was app.send_from_directory, which does not exist)
-            return send_from_directory(app.static_folder, 'favicon.ico')
-        return app.send_static_file('index.html')
+        # Unknown /api/... URLs are real JSON 404s, not the React page.
+        if path.startswith('api/') or path == 'api':
+            return {'errors': ['Not found']}, 404
+        dist = app.config['FRONTEND_DIST']
+        # Real files from the build (assets/*.js, favicon, images) are sent
+        # as-is; send_from_directory refuses paths that try to leave the folder.
+        if path and os.path.isfile(os.path.join(dist, path)):
+            # assets/ files have a content hash in their name (index-3f9a2c.js),
+            # so they can be cached for a year; other files for an hour.
+            if path.startswith('assets/'):
+                response = send_from_directory(dist, path, max_age=31536000)
+                response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+                return response
+            return send_from_directory(dist, path, max_age=3600)
+        # A missing *file* (an old /assets/index-abc123.js) is a real 404;
+        # serving index.html there would confuse the browser.
+        if '.' in path.rsplit('/', 1)[-1]:
+            return {'errors': ['Not found']}, 404
+        index = os.path.join(dist, 'index.html')
+        if not os.path.isfile(index):
+            return {'errors': ['The React build is missing: run `npm run build` in react-app/, '
+                               'or use the Vite dev server (npm run dev).']}, 404
+        # Every other URL (/, /routes/3, /no-such-page) gets index.html and
+        # React Router decides what to show. no-cache = always re-check, so a
+        # new deploy is picked up at once.
+        response = send_from_directory(dist, 'index.html', max_age=0)
+        response.headers['Cache-Control'] = 'no-cache'
+        return response
 
 
 def register_error_handlers(app):
@@ -151,6 +239,8 @@ def register_error_handlers(app):
         max_mb = app.config['MAX_CONTENT_LENGTH'] // (1024 * 1024)
         return {'errors': f'File is too large (max {max_mb} MB)'}, 413
 
-    @app.errorhandler(404)
-    def not_found(e):
-        return app.send_static_file('index.html')
+    @app.errorhandler(HTTPException)
+    def http_error(e):
+        # Every other HTTP error (404 unknown URL, 405 wrong method, ...) is
+        # JSON, so the frontend always gets something it can parse.
+        return {'errors': [e.description or e.name]}, e.code

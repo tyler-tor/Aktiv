@@ -3,3 +3,9 @@
 autopep8==2.0.0
 pycodestyle==2.10.0
 tomli==2.0.1
+# Tests: python -m pytest (from the project root)
+pytest==9.2.0
+iniconfig==2.3.1
+packaging==26.4
+pluggy==1.7.0
+pygments==2.21.0
