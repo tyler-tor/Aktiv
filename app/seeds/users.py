@@ -9,19 +9,19 @@ def seed_users():
     """
     demo = User(
         username='Demouser', email='demo@aa.io', password='password', first_name='Demo', last_name='user',
-        profile_picture='https://capstone-strava-clone-aktiv.s3.us-west-2.amazonaws.com/strava+pictures/profile/propic-8.jpg')
+        profile_picture='/images/seed/profile/demo.svg')
     marnie = User(
         username='marnie', email='marnie@aa.io', password='password', first_name='Marnie', last_name='Doe',
-        profile_picture='https://capstone-strava-clone-aktiv.s3.us-west-2.amazonaws.com/strava+pictures/profile/marnie.jpg')
+        profile_picture='/images/seed/profile/marnie.svg')
     bobbie = User(
         username='bobbie', email='bobbie@aa.io', password='password', first_name='Bobbie', last_name='Smith',
-        profile_picture='https://capstone-strava-clone-aktiv.s3.us-west-2.amazonaws.com/bob-pic-jpg.jpg')
+        profile_picture='/images/seed/profile/bobbie.svg')
     jimmy = User(
         username='JimmysWorld', email='jimmy@aa.io', password='password', first_name='Jimmy', last_name='Nuetron',
-        profile_picture='https://capstone-strava-clone-aktiv.s3.us-west-2.amazonaws.com/strava+pictures/profile/jimmy.jpg')
+        profile_picture='/images/seed/profile/jimmy.svg')
     tammie = User(
         username='LambdaTammie', email='tammie@aa.io', password='password', first_name='Tammie', last_name='Lambda',
-        profile_picture='https://capstone-strava-clone-aktiv.s3.us-west-2.amazonaws.com/strava+pictures/profile/tammie.jpg')
+        profile_picture='/images/seed/profile/tammie.svg')
 
 
     # Insert in this order so a fresh database gives the same ids as before

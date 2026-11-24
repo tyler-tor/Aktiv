@@ -14,6 +14,10 @@ follows = db.Table('follows',
               primary_key=True, index=True)
 )
 
+# Served by the React app (react-app/public/images). It used to be hot-linked
+# from a third-party church website.
+DEFAULT_AVATAR = '/images/default-avatar.svg'
+
 if environment == "production":
     follows.schema = SCHEMA
 
@@ -28,7 +32,7 @@ class User(db.Model, UserMixin):
     first_name = db.Column(db.String(100), nullable=False)
     last_name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(255), nullable=False, unique=True)
-    profile_picture = db.Column(db.String(255), default='https://www.dovercourt.org/wp-content/uploads/2019/11/610-6104451_image-placeholder-png-user-profile-placeholder-image-png.jpg')
+    profile_picture = db.Column(db.String(255), default=DEFAULT_AVATAR)
     hashed_password = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=utcnow, server_default=db.func.now())
     updated_at = db.Column(

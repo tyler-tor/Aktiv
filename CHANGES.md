@@ -737,3 +737,21 @@ at the end of this file.
 - **How to verify:** log in, click **Routes** and **Users** in the navbar: both lists render, links open the route / profile. Open `/routes` directly after a reload: it still works (it loads its own data).
   Verified: the jsdom smoke test no longer reports crashes for `/routes` and `/users` (the only two page crashes in the whole 23-scenario run before), and clicking the navbar links lands on the right pages with the expected content.
 - **Things to watch:** these lists are not paginated (they show everything). Fine for the demo size; add `?limit=` + "Load more" (A27 supports it for routes) when the data grows.
+
+## A36 — Own the default and seed images
+- **Problem:** The default profile picture was hot-linked from a church website (`dovercourt.org`), and every seeded user, route and workout image pointed at the old `capstone-strava-clone-aktiv` S3 bucket (photos of unknown origin and licence), plus two login/sign-up background photos in the CSS. If any of those hosts moved or removed a file the demo broke, and the photos may not be yours to show.
+- **What changed:**
+  - `scripts/generate_seed_images.py` draws all artwork as **SVG** (topographic contour lines, a trail with a start dot and a finish ring, a pulse line on workout images, coloured initials for the demo users, a neutral default avatar). No photos, no outside fonts or files; running it again produces identical files. The 36 generated files are committed in `react-app/public/images/` (`default-avatar.svg`, `seed/profile|routes|workouts/*.svg`, about 1.7 MB in total; they compress well).
+  - Seeds and the `User.profile_picture` default now use local paths (`/images/default-avatar.svg`, `/images/seed/routes/3.svg`, ...), which Vite serves in development and Flask serves from the build in production.
+  - New migration `f7a0d5c8e3b4_own_default_images.py` rewrites **existing rows** that still use the old URLs: the church placeholder and empty values become the local default avatar, and the old demo bucket URLs become the matching generated SVGs. Pictures users uploaded to *your* bucket are left alone. `downgrade()` is a deliberate no-op (the old files were third-party hosted, so there is nothing to restore).
+  - The two unused photos `image1.jpg` / `img-7.jpg` in `public/images` were deleted, and the CSS background photos were replaced by a plain gradient (the whole login look is redesigned in A34).
+- **Files:** `scripts/generate_seed_images.py` (new), `react-app/public/images/**` (new SVGs; two JPGs removed), `app/models/user.py`, `app/seeds/{users,routes,workouts}.py`, `migrations/versions/f7a0d5c8e3b4_own_default_images.py` (new), `react-app/src/components/auth/{LoginForm,SignUpForm}.css`
+- **How to verify:**
+  1. `rm app/dev.db && flask db upgrade && flask seed all`, run the app: every avatar and card image is a generated drawing and the Network tab shows no request to `amazonaws.com` or `dovercourt.org` for seed content.
+  2. For an existing database run `flask db upgrade`; old demo rows switch to the local images.
+  3. `grep -rn "amazonaws\|dovercourt" app react-app/src react-app/index.html` finds only the S3 upload helper (your own bucket).
+  Verified (16 checks): after seeding, every image URL in routes, workouts and users is a local `/images/...` path and the file exists in `react-app/public`; a sign-up without a picture gets the local default; the migration's URL mapping (including real uploads staying untouched, NULL and empty values) and a full upgrade/downgrade/upgrade on an old-looking SQLite database.
+- **Things to watch:**
+  - The SVG artwork is generic by design; swap in your own images any time by replacing the files (same names) or uploading through the app.
+  - I could not look at the rendered drawings here (no browser); they were checked as valid XML and converted successfully by ImageMagick.
+  - Your S3 bucket from A5 is unaffected: it still receives user uploads.

@@ -1,5 +1,5 @@
 .form-container {
-    background: url('https://capstone-strava-clone-aktiv.s3.us-west-2.amazonaws.com/hiking-image-4.jpg') center no-repeat;
+    background: linear-gradient(135deg, #2a2563, #3b2fd9);
     background-size: cover;
     display: flex;
     height: 100%;
